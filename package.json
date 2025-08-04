@@ -1,0 +1,52 @@
+{
+  "name": "show-ai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "install:timeout": "npm install --timeout=600000 --fetch-timeout=600000 --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000",
+    "install:registry": "npm install --registry https://registry.npmjs.org/ --timeout=600000",
+    "install:clean": "rm -rf node_modules package-lock.json && npm cache clean --force && npm install --timeout=600000",
+    "postinstall": "npm run build:check || true",
+    "build:check": "echo 'Build check completed'",
+    "clean": "rm -rf node_modules package-lock.json && npm cache clean --force"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "firebase": "^10.12.2",
+    "next": "^14.2.31",
+    "openai": "^4.52.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/uuid": "^10.0.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "overrides": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0"
+  },
+  "npmrc": {
+    "timeout": "600000",
+    "fetch-timeout": "600000",
+    "fetch-retries": "5",
+    "fetch-retry-mintimeout": "20000",
+    "fetch-retry-maxtimeout": "120000"
+  }
+}

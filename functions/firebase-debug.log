@@ -1,0 +1,986 @@
+[debug] [2025-08-03T01:33:15.035Z] ----------------------------------------------------------------------
+[debug] [2025-08-03T01:33:15.038Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\andre\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js emulators:start --only functions
+[debug] [2025-08-03T01:33:15.038Z] CLI Version:   14.11.2
+[debug] [2025-08-03T01:33:15.038Z] Platform:      win32
+[debug] [2025-08-03T01:33:15.038Z] Node Version:  v22.17.1
+[debug] [2025-08-03T01:33:15.039Z] Time:          Sat Aug 02 2025 21:33:15 GMT-0400 (Eastern Daylight Saving Time)
+[debug] [2025-08-03T01:33:15.039Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-03T01:33:15.280Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-03T01:33:15.281Z] > authorizing via signed-in user (andrewscottgm@gmail.com)
+[info] i  emulators: Starting emulators: functions {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: functions"}}
+[debug] [2025-08-03T01:33:15.291Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T01:33:15.291Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[warn] !  emulators: It seems that you are running multiple instances of the emulator suite for project showai-23713. This may result in unexpected behavior. 
+[debug] [2025-08-03T01:33:15.297Z] [hub] writing locator at C:\Users\andre\AppData\Local\Temp\hub-showai-23713.json
+[debug] [2025-08-03T01:33:15.319Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T01:33:15.319Z] [eventarc] Eventarc Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T01:33:15.320Z] [tasks] Cloud Tasks Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T01:33:15.320Z] late-assigned ports for functions and eventarc emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"functions":[{"address":"127.0.0.1","family":"IPv4","port":5001}],"eventarc":[{"address":"127.0.0.1","family":"IPv4","port":9299}],"tasks":[{"address":"127.0.0.1","family":"IPv4","port":9499}]},"metadata":{"message":"late-assigned ports for functions and eventarc emulators"}}
+[warn] !  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect {"metadata":{"emulator":{"name":"functions"},"message":"The following emulators are not running, calls to these services from the Functions emulator will affect production: \u001b[1mapphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect\u001b[22m"}}
+[debug] [2025-08-03T01:33:15.365Z] defaultcredentials: writing to file C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json
+[debug] [2025-08-03T01:33:15.366Z] Setting GAC to C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to C:\\Users\\andre\\AppData\\Roaming\\firebase\\andrewscottgm_gmail_com_application_default_credentials.json"}}
+[debug] [2025-08-03T01:33:15.367Z] Checked if tokens are valid: true, expires at: 1754186894545
+[debug] [2025-08-03T01:33:15.367Z] Checked if tokens are valid: true, expires at: 1754186894545
+[debug] [2025-08-03T01:33:15.368Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig [none]
+[debug] [2025-08-03T01:33:16.147Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig 200
+[debug] [2025-08-03T01:33:16.149Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig {"projectId":"showai-23713","databaseURL":"https://showai-23713-default-rtdb.firebaseio.com","storageBucket":"showai-23713.firebasestorage.app"}
+[info] i  functions: Watching "C:\NB\showAI_V3\functions" for Cloud Functions... {"metadata":{"emulator":{"name":"functions"},"message":"Watching \"C:\\NB\\showAI_V3\\functions\" for Cloud Functions..."}}
+[debug] [2025-08-03T01:33:16.182Z] Validating nodejs source
+[debug] [2025-08-03T01:33:17.347Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:33:17.347Z] Building nodejs source
+[debug] [2025-08-03T01:33:17.348Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:33:17.354Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:33:17.362Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8147
+
+[debug] [2025-08-03T01:33:18.139Z] Got response from /__/functions.yaml {"endpoints":{"generateFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"callableTrigger":{},"entryPoint":"generateFollowUp"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateFollowUp. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateFollowUp."}}
+[info] +  functions[us-central1-generateFollowUp]: http function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateFollowUp). {"metadata":{"emulator":{"name":"functions"},"message":"\u001b[1mhttp\u001b[22m function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateFollowUp)."}}
+[debug] [2025-08-03T01:33:22.190Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+│ i  View Emulator UI at http://127.0.0.1:4000/               │
+└─────────────────────────────────────────────────────────────┘
+
+┌───────────┬────────────────┬─────────────────────────────────┐
+│ Emulator  │ Host:Port      │ View in Emulator UI             │
+├───────────┼────────────────┼─────────────────────────────────┤
+│ Functions │ 127.0.0.1:5001 │ http://127.0.0.1:4000/functions │
+└───────────┴────────────────┴─────────────────────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+[debug] [2025-08-03T01:33:43.181Z] [work-queue] {"queuedWork":["/showai-23713/us-central1/generateFollowUp-2025-08-03T01:33:43.181Z"],"queueLength":1,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T01:33:43.181Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":["/showai-23713/us-central1/generateFollowUp-2025-08-03T01:33:43.181Z"],"workRunningCount":1}
+[debug] [2025-08-03T01:33:43.182Z] Accepted request GET /showai-23713/us-central1/generateFollowUp --> us-central1-generateFollowUp
+[debug] [2025-08-03T01:33:43.185Z] [functions] Runtime ready! Sending request! {"metadata":{"emulator":{"name":"functions"},"message":"[functions] Runtime ready! Sending request!"}}
+[debug] [2025-08-03T01:33:43.186Z] [functions] Got req.url=/showai-23713/us-central1/generateFollowUp, mapping to path=/ {"metadata":{"emulator":{"name":"functions"},"message":"[functions] Got req.url=/showai-23713/us-central1/generateFollowUp, mapping to path=/"}}
+[debug] [2025-08-03T01:33:43.200Z] [worker-pool] addWorker(us-central1-generateFollowUp) {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] addWorker(us-central1-generateFollowUp)"}}
+[debug] [2025-08-03T01:33:43.202Z] [worker-pool] Adding worker with key us-central1-generateFollowUp, total=1 {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] Adding worker with key us-central1-generateFollowUp, total=1"}}
+[debug] [2025-08-03T01:33:44.633Z] [runtime-status] [33752] Resolved module firebase-admin {"declared":true,"installed":true,"version":"12.7.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-admin\\lib\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Resolved module firebase-admin {\"declared\":true,\"installed\":true,\"version\":\"12.7.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-admin\\\\lib\\\\index.js\"}"}}
+[debug] [2025-08-03T01:33:44.634Z] [runtime-status] [33752] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[debug] [2025-08-03T01:33:44.634Z] [runtime-status] [33752] Outgoing network have been stubbed. [{"name":"http","status":"mocked"},{"name":"http","status":"mocked"},{"name":"https","status":"mocked"},{"name":"https","status":"mocked"},{"name":"net","status":"mocked"}] {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Outgoing network have been stubbed. [{\"name\":\"http\",\"status\":\"mocked\"},{\"name\":\"http\",\"status\":\"mocked\"},{\"name\":\"https\",\"status\":\"mocked\"},{\"name\":\"https\",\"status\":\"mocked\"},{\"name\":\"net\",\"status\":\"mocked\"}]"}}
+[debug] [2025-08-03T01:33:44.635Z] [runtime-status] [33752] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[debug] [2025-08-03T01:33:45.097Z] [runtime-status] [33752] Checked functions.config() {"config":{}} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Checked functions.config() {\"config\":{}}"}}
+[debug] [2025-08-03T01:33:45.097Z] [runtime-status] [33752] firebase-functions has been stubbed. {"functionsResolution":{"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"}} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] firebase-functions has been stubbed. {\"functionsResolution\":{\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}}"}}
+[debug] [2025-08-03T01:33:45.098Z] [runtime-status] [33752] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[debug] [2025-08-03T01:33:45.106Z] [runtime-status] [33752] Resolved module firebase-admin {"declared":true,"installed":true,"version":"12.7.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-admin\\lib\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Resolved module firebase-admin {\"declared\":true,\"installed\":true,\"version\":\"12.7.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-admin\\\\lib\\\\index.js\"}"}}
+[debug] [2025-08-03T01:33:45.109Z] [runtime-status] [33752] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[debug] [2025-08-03T01:33:45.110Z] [runtime-status] [33752] firebase-admin has been stubbed. {"adminResolution":{"declared":true,"installed":true,"version":"12.7.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-admin\\lib\\index.js"}} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] firebase-admin has been stubbed. {\"adminResolution\":{\"declared\":true,\"installed\":true,\"version\":\"12.7.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-admin\\\\lib\\\\index.js\"}}"}}
+[debug] [2025-08-03T01:33:45.128Z] [runtime-status] [33752] Functions runtime initialized. {"cwd":"C:\\NB\\showAI_V3\\functions","node_version":"22.17.1"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Functions runtime initialized. {\"cwd\":\"C:\\\\NB\\\\showAI_V3\\\\functions\",\"node_version\":\"22.17.1\"}"}}
+[debug] [2025-08-03T01:33:45.129Z] [runtime-status] [33752] Listening to port: \\?\pipe\fire_emu_3064e097a75aa7b3 {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[runtime-status] [33752] Listening to port: \\\\?\\pipe\\fire_emu_3064e097a75aa7b3"}}
+[debug] [2025-08-03T01:33:45.227Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: IDLE {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: IDLE"}}
+[debug] [2025-08-03T01:33:45.228Z] [worker-pool] submitRequest(triggerId=us-central1-generateFollowUp) {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] submitRequest(triggerId=us-central1-generateFollowUp)"}}
+[info] i  functions: Beginning execution of "us-central1-generateFollowUp" {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Beginning execution of \"us-central1-generateFollowUp\""}}
+[debug] [2025-08-03T01:33:45.229Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: BUSY {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: BUSY"}}
+[info] >  {"severity":"WARNING","message":"Request has invalid method. GET"} {"user":{"severity":"WARNING","message":"Request has invalid method. GET"},"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"\u001b[90m> \u001b[39m {\"severity\":\"WARNING\",\"message\":\"Request has invalid method. GET\"}"}}
+[info] >  {"severity":"ERROR","message":"Error: Invalid request, unable to process.\n    at entryFromArgs (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:134:19)\n    at Object.error (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:121:11)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:431:24\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:392:25\n    at cors (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:188:7)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:224:17\n    at originCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:214:15)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:204:7)"} {"user":{"severity":"ERROR","message":"Error: Invalid request, unable to process.\n    at entryFromArgs (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:134:19)\n    at Object.error (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:121:11)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:431:24\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:392:25\n    at cors (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:188:7)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:224:17\n    at originCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:214:15)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:204:7)"},"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"\u001b[90m> \u001b[39m {\"severity\":\"ERROR\",\"message\":\"Error: Invalid request, unable to process.\\n    at entryFromArgs (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\logger\\\\index.js:134:19)\\n    at Object.error (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\logger\\\\index.js:121:11)\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\common\\\\providers\\\\https.js:431:24\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\common\\\\providers\\\\https.js:392:25\\n    at cors (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:188:7)\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:224:17\\n    at originCallback (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:214:15)\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:219:13\\n    at optionsCallback (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:199:9)\\n    at corsMiddleware (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:204:7)\"}"}}
+[debug] [2025-08-03T01:33:45.241Z] Finishing up request with event=pause {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finishing up request with event=pause"}}
+[info] i  functions: Finished "us-central1-generateFollowUp" in 12.4414ms {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finished \"us-central1-generateFollowUp\" in 12.4414ms"}}
+[debug] [2025-08-03T01:33:45.242Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: IDLE {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: IDLE"}}
+[debug] [2025-08-03T01:33:45.242Z] Finishing up request with event=finish {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finishing up request with event=finish"}}
+[debug] [2025-08-03T01:33:45.243Z] Finishing up request with event=close {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finishing up request with event=close"}}
+[debug] [2025-08-03T01:33:45.243Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T01:33:45.795Z] Functions emulator received unknown request at path /favicon.ico
+[debug] [2025-08-03T01:33:45.812Z] [work-queue] {"queuedWork":["/showai-23713/us-central1/generateFollowUp-2025-08-03T01:33:45.812Z"],"queueLength":1,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T01:33:45.813Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":["/showai-23713/us-central1/generateFollowUp-2025-08-03T01:33:45.812Z"],"workRunningCount":1}
+[debug] [2025-08-03T01:33:45.813Z] Accepted request GET /showai-23713/us-central1/generateFollowUp --> us-central1-generateFollowUp
+[debug] [2025-08-03T01:33:45.814Z] [functions] Runtime ready! Sending request! {"metadata":{"emulator":{"name":"functions"},"message":"[functions] Runtime ready! Sending request!"}}
+[debug] [2025-08-03T01:33:45.814Z] [functions] Got req.url=/showai-23713/us-central1/generateFollowUp, mapping to path=/ {"metadata":{"emulator":{"name":"functions"},"message":"[functions] Got req.url=/showai-23713/us-central1/generateFollowUp, mapping to path=/"}}
+[debug] [2025-08-03T01:33:45.814Z] [worker-pool] submitRequest(triggerId=us-central1-generateFollowUp) {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] submitRequest(triggerId=us-central1-generateFollowUp)"}}
+[info] i  functions: Beginning execution of "us-central1-generateFollowUp" {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Beginning execution of \"us-central1-generateFollowUp\""}}
+[debug] [2025-08-03T01:33:45.814Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: BUSY {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: BUSY"}}
+[info] >  {"severity":"WARNING","message":"Request has invalid method. GET"} {"user":{"severity":"WARNING","message":"Request has invalid method. GET"},"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"\u001b[90m> \u001b[39m {\"severity\":\"WARNING\",\"message\":\"Request has invalid method. GET\"}"}}
+[info] >  {"severity":"ERROR","message":"Error: Invalid request, unable to process.\n    at entryFromArgs (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:134:19)\n    at Object.error (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:121:11)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:431:24\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:392:25\n    at cors (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:188:7)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:224:17\n    at originCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:214:15)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:204:7)"} {"user":{"severity":"ERROR","message":"Error: Invalid request, unable to process.\n    at entryFromArgs (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:134:19)\n    at Object.error (C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\logger\\index.js:121:11)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:431:24\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\common\\providers\\https.js:392:25\n    at cors (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:188:7)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:224:17\n    at originCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:214:15)\n    at C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (C:\\NB\\showAI_V3\\functions\\node_modules\\cors\\lib\\index.js:204:7)"},"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"\u001b[90m> \u001b[39m {\"severity\":\"ERROR\",\"message\":\"Error: Invalid request, unable to process.\\n    at entryFromArgs (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\logger\\\\index.js:134:19)\\n    at Object.error (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\logger\\\\index.js:121:11)\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\common\\\\providers\\\\https.js:431:24\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\common\\\\providers\\\\https.js:392:25\\n    at cors (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:188:7)\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:224:17\\n    at originCallback (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:214:15)\\n    at C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:219:13\\n    at optionsCallback (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:199:9)\\n    at corsMiddleware (C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\cors\\\\lib\\\\index.js:204:7)\"}"}}
+[debug] [2025-08-03T01:33:45.818Z] Finishing up request with event=pause {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finishing up request with event=pause"}}
+[info] i  functions: Finished "us-central1-generateFollowUp" in 3.2258ms {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finished \"us-central1-generateFollowUp\" in 3.2258ms"}}
+[debug] [2025-08-03T01:33:45.818Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: IDLE {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: IDLE"}}
+[debug] [2025-08-03T01:33:45.818Z] Finishing up request with event=finish {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finishing up request with event=finish"}}
+[debug] [2025-08-03T01:33:45.818Z] Finishing up request with event=close {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"Finishing up request with event=close"}}
+[debug] [2025-08-03T01:33:45.818Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T01:35:52.215Z] [work-queue] {"queuedWork":["/showai-23713/us-central1/generateAiFollowUp-2025-08-03T01:35:52.215Z"],"queueLength":1,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T01:35:52.215Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":["/showai-23713/us-central1/generateAiFollowUp-2025-08-03T01:35:52.215Z"],"workRunningCount":1}
+[debug] [2025-08-03T01:35:52.216Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T01:45:44.710Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:45:45.716Z] Validating nodejs source
+[debug] [2025-08-03T01:45:46.931Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:45:46.931Z] Building nodejs source
+[debug] [2025-08-03T01:45:46.931Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:45:46.932Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:45:46.942Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8379
+
+[debug] [2025-08-03T01:45:47.764Z] Got response from /__/functions.yaml {"endpoints":{"generateFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"callableTrigger":{},"entryPoint":"generateFollowUp"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateFollowUp. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateFollowUp."}}
+[debug] [2025-08-03T01:45:51.797Z] [worker-pool] Shutting down IDLE worker (us-central1-generateFollowUp) {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] Shutting down IDLE worker (us-central1-generateFollowUp)"}}
+[debug] [2025-08-03T01:45:51.798Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: FINISHING {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: FINISHING"}}
+[debug] [2025-08-03T01:45:51.806Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: exited {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: exited"}}
+[debug] [2025-08-03T01:45:51.807Z] [worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: FINISHED {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateFollowUp"},"extension":{},"message":"[worker-us-central1-generateFollowUp-cfa8a591-6575-4afe-9c34-7b6752eeb92a]: FINISHED"}}
+[debug] [2025-08-03T01:47:52.480Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:47:53.483Z] Validating nodejs source
+[debug] [2025-08-03T01:47:54.653Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:47:54.654Z] Building nodejs source
+[debug] [2025-08-03T01:47:54.654Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:47:54.655Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:47:54.665Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8626
+
+[debug] [2025-08-03T01:47:55.448Z] Got response from /__/functions.yaml {"endpoints":{"generateFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"callableTrigger":{},"entryPoint":"generateFollowUp"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateFollowUp. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateFollowUp."}}
+[debug] [2025-08-03T01:48:37.463Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:48:38.478Z] Validating nodejs source
+[debug] [2025-08-03T01:48:39.581Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:48:39.581Z] Building nodejs source
+[debug] [2025-08-03T01:48:39.581Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:48:39.582Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:48:39.590Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8111
+
+[debug] [2025-08-03T01:48:40.353Z] Got response from /__/functions.yaml {"endpoints":{"generateFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"callableTrigger":{},"entryPoint":"generateFollowUp"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateFollowUp. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateFollowUp."}}
+[debug] [2025-08-03T01:48:48.985Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:48:49.990Z] Validating nodejs source
+[debug] [2025-08-03T01:48:51.141Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:48:51.141Z] Building nodejs source
+[debug] [2025-08-03T01:48:51.141Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:48:51.142Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:48:51.150Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[debug] [2025-08-03T01:48:51.159Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[info] Serving at port 8636
+
+[debug] [2025-08-03T01:48:51.920Z] Got response from /__/functions.yaml {"endpoints":{"generateFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"callableTrigger":{},"entryPoint":"generateFollowUp"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[debug] [2025-08-03T01:48:52.169Z] Validating nodejs source
+[debug] [2025-08-03T01:48:53.217Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:48:53.217Z] Building nodejs source
+[debug] [2025-08-03T01:48:53.217Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:48:53.218Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:48:53.227Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8033
+
+[debug] [2025-08-03T01:48:54.064Z] Got response from /__/functions.yaml {"endpoints":{"generateFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"callableTrigger":{},"entryPoint":"generateFollowUp"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateFollowUp. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateFollowUp."}}
+[info] +  functions: Loaded functions definitions from source: generateFollowUp. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateFollowUp."}}
+[debug] [2025-08-03T01:49:29.905Z] File C:\NB\showAI_V3\functions\lib\index.js.map changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\lib\\index.js.map changed, reloading triggers"}}
+[debug] [2025-08-03T01:49:29.912Z] File C:\NB\showAI_V3\functions\lib\index.js changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\lib\\index.js changed, reloading triggers"}}
+[debug] [2025-08-03T01:49:30.926Z] Validating nodejs source
+[debug] [2025-08-03T01:49:32.115Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:49:32.116Z] Building nodejs source
+[debug] [2025-08-03T01:49:32.116Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:49:32.117Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:49:32.125Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8029
+
+[debug] [2025-08-03T01:49:32.934Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[info] +  functions[us-central1-generateAiFollowUp]: http function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp). {"metadata":{"emulator":{"name":"functions"},"message":"\u001b[1mhttp\u001b[22m function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp)."}}
+[info] +  functions[us-central1-generateBuyerPersona]: http function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateBuyerPersona). {"metadata":{"emulator":{"name":"functions"},"message":"\u001b[1mhttp\u001b[22m function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateBuyerPersona)."}}
+[debug] [2025-08-03T01:49:55.824Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:49:56.834Z] Validating nodejs source
+[debug] [2025-08-03T01:49:58.673Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:49:58.673Z] Building nodejs source
+[debug] [2025-08-03T01:49:58.674Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:49:58.674Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:49:58.683Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8749
+
+[debug] [2025-08-03T01:49:59.484Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[debug] [2025-08-03T01:50:19.129Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:50:20.138Z] Validating nodejs source
+[debug] [2025-08-03T01:50:21.262Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:50:21.262Z] Building nodejs source
+[debug] [2025-08-03T01:50:21.262Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:50:21.264Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:50:21.274Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8349
+
+[debug] [2025-08-03T01:50:22.087Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[debug] [2025-08-03T01:51:15.754Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:51:16.757Z] Validating nodejs source
+[debug] [2025-08-03T01:51:17.961Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:51:17.961Z] Building nodejs source
+[debug] [2025-08-03T01:51:17.961Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:51:17.962Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:51:17.970Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8009
+
+[debug] [2025-08-03T01:51:18.801Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[debug] [2025-08-03T01:52:00.708Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:52:01.721Z] Validating nodejs source
+[debug] [2025-08-03T01:52:03.127Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:52:03.127Z] Building nodejs source
+[debug] [2025-08-03T01:52:03.127Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:52:03.128Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:52:03.137Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[debug] [2025-08-03T01:52:03.147Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[info] Serving at port 8904
+
+[debug] [2025-08-03T01:52:04.002Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[debug] [2025-08-03T01:52:04.149Z] Validating nodejs source
+[debug] [2025-08-03T01:52:05.406Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:52:05.406Z] Building nodejs source
+[debug] [2025-08-03T01:52:05.406Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:52:05.407Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:52:05.415Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8618
+
+[debug] [2025-08-03T01:52:06.213Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[debug] [2025-08-03T01:52:06.237Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T01:52:07.240Z] Validating nodejs source
+[debug] [2025-08-03T01:52:08.376Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T01:52:08.376Z] Building nodejs source
+[debug] [2025-08-03T01:52:08.376Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T01:52:08.377Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T01:52:08.387Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[info] Serving at port 8165
+
+[debug] [2025-08-03T01:52:09.205Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[debug] [2025-08-03T01:52:29.973Z] Received signal SIGHUP 1
+[info]  
+[info] i  emulators: Received SIGHUP for the first time. Starting a clean shutdown. 
+[info] i  emulators: Please wait for a clean shutdown or send the SIGHUP signal again to stop right now. 
+[info] i  emulators: Shutting down emulators. {"metadata":{"emulator":{"name":"hub"},"message":"Shutting down emulators."}}
+[info] i  ui: Stopping Emulator UI {"metadata":{"emulator":{"name":"ui"},"message":"Stopping Emulator UI"}}
+[info] i  functions: Stopping Functions Emulator {"metadata":{"emulator":{"name":"functions"},"message":"Stopping Functions Emulator"}}
+[info] i  eventarc: Stopping Eventarc Emulator {"metadata":{"emulator":{"name":"eventarc"},"message":"Stopping Eventarc Emulator"}}
+[info] i  tasks: Stopping Cloud Tasks Emulator {"metadata":{"emulator":{"name":"tasks"},"message":"Stopping Cloud Tasks Emulator"}}
+[info] i  hub: Stopping emulator hub {"metadata":{"emulator":{"name":"hub"},"message":"Stopping emulator hub"}}
+[info] i  logging: Stopping Logging Emulator {"metadata":{"emulator":{"name":"logging"},"message":"Stopping Logging Emulator"}}
+[debug] [2025-08-03T01:52:29.986Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[debug] [2025-08-03T20:55:05.650Z] ----------------------------------------------------------------------
+[debug] [2025-08-03T20:55:05.654Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\andre\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js emulators:start
+[debug] [2025-08-03T20:55:05.654Z] CLI Version:   14.11.2
+[debug] [2025-08-03T20:55:05.654Z] Platform:      win32
+[debug] [2025-08-03T20:55:05.654Z] Node Version:  v22.17.1
+[debug] [2025-08-03T20:55:05.655Z] Time:          Sun Aug 03 2025 16:55:05 GMT-0400 (Eastern Daylight Saving Time)
+[debug] [2025-08-03T20:55:05.655Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-03T20:55:05.985Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-03T20:55:05.985Z] > authorizing via signed-in user (andrewscottgm@gmail.com)
+[info] i  emulators: Starting emulators: functions, extensions {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: functions, extensions"}}
+[debug] [2025-08-03T20:55:05.991Z] Checked if tokens are valid: true, expires at: 1754255858437
+[debug] [2025-08-03T20:55:05.991Z] Checked if tokens are valid: true, expires at: 1754255858437
+[debug] [2025-08-03T20:55:05.992Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/showai-23713 [none]
+[debug] [2025-08-03T20:55:06.326Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/showai-23713 200
+[debug] [2025-08-03T20:55:06.327Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/showai-23713 {"projectNumber":"72019299027","projectId":"showai-23713","lifecycleState":"ACTIVE","name":"ShowAI","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-07-30T22:47:09.462094Z"}
+[debug] [2025-08-03T20:55:06.343Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T20:55:06.344Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2025-08-03T20:55:06.351Z] [hub] writing locator at C:\Users\andre\AppData\Local\Temp\hub-showai-23713.json
+[debug] [2025-08-03T20:55:06.363Z] [Extensions] Started Extensions emulator, this is a noop.
+[debug] [2025-08-03T20:55:06.374Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T20:55:06.374Z] [eventarc] Eventarc Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T20:55:06.374Z] [tasks] Cloud Tasks Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T20:55:06.375Z] late-assigned ports for functions and eventarc emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"functions":[{"address":"127.0.0.1","family":"IPv4","port":5001}],"eventarc":[{"address":"127.0.0.1","family":"IPv4","port":9299}],"tasks":[{"address":"127.0.0.1","family":"IPv4","port":9499}]},"metadata":{"message":"late-assigned ports for functions and eventarc emulators"}}
+[warn] !  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect {"metadata":{"emulator":{"name":"functions"},"message":"The following emulators are not running, calls to these services from the Functions emulator will affect production: \u001b[1mapphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect\u001b[22m"}}
+[debug] [2025-08-03T20:55:06.424Z] defaultcredentials: writing to file C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json
+[debug] [2025-08-03T20:55:06.426Z] Setting GAC to C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to C:\\Users\\andre\\AppData\\Roaming\\firebase\\andrewscottgm_gmail_com_application_default_credentials.json"}}
+[debug] [2025-08-03T20:55:06.426Z] Checked if tokens are valid: true, expires at: 1754255858437
+[debug] [2025-08-03T20:55:06.426Z] Checked if tokens are valid: true, expires at: 1754255858437
+[debug] [2025-08-03T20:55:06.426Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig [none]
+[debug] [2025-08-03T20:55:07.247Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig 200
+[debug] [2025-08-03T20:55:07.247Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig {"projectId":"showai-23713","databaseURL":"https://showai-23713-default-rtdb.firebaseio.com","storageBucket":"showai-23713.firebasestorage.app"}
+[debug] [2025-08-03T20:55:07.277Z] [Extensions] Connecting Extensions emulator, this is a noop.
+[info] i  functions: Watching "C:\NB\showAI_V3\functions" for Cloud Functions... {"metadata":{"emulator":{"name":"functions"},"message":"Watching \"C:\\NB\\showAI_V3\\functions\" for Cloud Functions..."}}
+[debug] [2025-08-03T20:55:07.286Z] Validating nodejs source
+[debug] [2025-08-03T20:55:08.719Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T20:55:08.719Z] Building nodejs source
+[debug] [2025-08-03T20:55:08.720Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T20:55:08.723Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T20:55:08.738Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8324
+
+[debug] [2025-08-03T20:55:09.731Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[debug] [2025-08-03T20:55:13.818Z] defaultcredentials: writing to file C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json
+[debug] [2025-08-03T20:55:13.820Z] Setting GAC to C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to C:\\Users\\andre\\AppData\\Roaming\\firebase\\andrewscottgm_gmail_com_application_default_credentials.json"}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[info] +  functions[us-central1-generateAiFollowUp]: http function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp). {"metadata":{"emulator":{"name":"functions"},"message":"\u001b[1mhttp\u001b[22m function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp)."}}
+[info] +  functions[us-central1-generateBuyerPersona]: http function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateBuyerPersona). {"metadata":{"emulator":{"name":"functions"},"message":"\u001b[1mhttp\u001b[22m function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateBuyerPersona)."}}
+[debug] [2025-08-03T20:55:13.833Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+│ i  View Emulator UI at http://127.0.0.1:4000/               │
+└─────────────────────────────────────────────────────────────┘
+
+┌────────────┬────────────────┬──────────────────────────────────┐
+│ Emulator   │ Host:Port      │ View in Emulator UI              │
+├────────────┼────────────────┼──────────────────────────────────┤
+│ Functions  │ 127.0.0.1:5001 │ http://127.0.0.1:4000/functions  │
+├────────────┼────────────────┼──────────────────────────────────┤
+│ Extensions │ 127.0.0.1:5001 │ http://127.0.0.1:4000/extensions │
+└────────────┴────────────────┴──────────────────────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+┌─────────────────────────┬───────────────┬─────────────────────┐
+│ Extension Instance Name │ Extension Ref │ View in Emulator UI │
+└─────────────────────────┴───────────────┴─────────────────────┘
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+[debug] [2025-08-03T20:55:33.638Z] [work-queue] {"queuedWork":["/showai-23713/us-central1/generateAiFollowUp-2025-08-03T20:55:33.638Z"],"queueLength":1,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T20:55:33.638Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":["/showai-23713/us-central1/generateAiFollowUp-2025-08-03T20:55:33.638Z"],"workRunningCount":1}
+[debug] [2025-08-03T20:55:33.638Z] Accepted request POST /showai-23713/us-central1/generateAiFollowUp --> us-central1-generateAiFollowUp
+[debug] [2025-08-03T20:55:33.641Z] [functions] Runtime ready! Sending request! {"metadata":{"emulator":{"name":"functions"},"message":"[functions] Runtime ready! Sending request!"}}
+[debug] [2025-08-03T20:55:33.642Z] [functions] Got req.url=/showai-23713/us-central1/generateAiFollowUp, mapping to path=/ {"metadata":{"emulator":{"name":"functions"},"message":"[functions] Got req.url=/showai-23713/us-central1/generateAiFollowUp, mapping to path=/"}}
+[debug] [2025-08-03T20:55:33.655Z] [worker-pool] addWorker(us-central1-generateAiFollowUp) {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] addWorker(us-central1-generateAiFollowUp)"}}
+[debug] [2025-08-03T20:55:33.656Z] [worker-pool] Adding worker with key us-central1-generateAiFollowUp, total=1 {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] Adding worker with key us-central1-generateAiFollowUp, total=1"}}
+[debug] [2025-08-03T20:55:35.336Z] [runtime-status] [31576] Resolved module firebase-admin {"declared":true,"installed":true,"version":"12.7.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-admin\\lib\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Resolved module firebase-admin {\"declared\":true,\"installed\":true,\"version\":\"12.7.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-admin\\\\lib\\\\index.js\"}"}}
+[debug] [2025-08-03T20:55:35.337Z] [runtime-status] [31576] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[warn] !  Found .runtimeconfig.json but the JSON format is invalid. {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"Found .runtimeconfig.json but the JSON format is invalid."}}
+[debug] [2025-08-03T20:55:35.338Z] [runtime-status] [31576] Outgoing network have been stubbed. [{"name":"http","status":"mocked"},{"name":"http","status":"mocked"},{"name":"https","status":"mocked"},{"name":"https","status":"mocked"},{"name":"net","status":"mocked"}] {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Outgoing network have been stubbed. [{\"name\":\"http\",\"status\":\"mocked\"},{\"name\":\"http\",\"status\":\"mocked\"},{\"name\":\"https\",\"status\":\"mocked\"},{\"name\":\"https\",\"status\":\"mocked\"},{\"name\":\"net\",\"status\":\"mocked\"}]"}}
+[debug] [2025-08-03T20:55:35.339Z] [runtime-status] [31576] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[debug] [2025-08-03T20:55:35.894Z] [runtime-status] [31576] Checked functions.config() {"config":{}} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Checked functions.config() {\"config\":{}}"}}
+[debug] [2025-08-03T20:55:35.895Z] [runtime-status] [31576] firebase-functions has been stubbed. {"functionsResolution":{"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"}} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] firebase-functions has been stubbed. {\"functionsResolution\":{\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}}"}}
+[debug] [2025-08-03T20:55:35.895Z] [runtime-status] [31576] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[debug] [2025-08-03T20:55:35.904Z] [runtime-status] [31576] Resolved module firebase-admin {"declared":true,"installed":true,"version":"12.7.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-admin\\lib\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Resolved module firebase-admin {\"declared\":true,\"installed\":true,\"version\":\"12.7.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-admin\\\\lib\\\\index.js\"}"}}
+[debug] [2025-08-03T20:55:35.907Z] [runtime-status] [31576] Resolved module firebase-functions {"declared":true,"installed":true,"version":"6.4.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-functions\\lib\\v2\\index.js"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Resolved module firebase-functions {\"declared\":true,\"installed\":true,\"version\":\"6.4.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-functions\\\\lib\\\\v2\\\\index.js\"}"}}
+[debug] [2025-08-03T20:55:35.908Z] [runtime-status] [31576] firebase-admin has been stubbed. {"adminResolution":{"declared":true,"installed":true,"version":"12.7.0","resolution":"C:\\NB\\showAI_V3\\functions\\node_modules\\firebase-admin\\lib\\index.js"}} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] firebase-admin has been stubbed. {\"adminResolution\":{\"declared\":true,\"installed\":true,\"version\":\"12.7.0\",\"resolution\":\"C:\\\\NB\\\\showAI_V3\\\\functions\\\\node_modules\\\\firebase-admin\\\\lib\\\\index.js\"}}"}}
+[debug] [2025-08-03T20:55:35.925Z] [runtime-status] [31576] initializeApp(DEFAULT) {"storageBucket":"showai-23713.firebasestorage.app","databaseURL":"https://showai-23713-default-rtdb.firebaseio.com","projectId":"showai-23713"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] initializeApp(DEFAULT) {\"storageBucket\":\"showai-23713.firebasestorage.app\",\"databaseURL\":\"https://showai-23713-default-rtdb.firebaseio.com\",\"projectId\":\"showai-23713\"}"}}
+[debug] [2025-08-03T20:55:35.932Z] [runtime-status] [31576] Functions runtime initialized. {"cwd":"C:\\NB\\showAI_V3\\functions","node_version":"22.17.1"} {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Functions runtime initialized. {\"cwd\":\"C:\\\\NB\\\\showAI_V3\\\\functions\",\"node_version\":\"22.17.1\"}"}}
+[debug] [2025-08-03T20:55:35.932Z] [runtime-status] [31576] Listening to port: \\?\pipe\fire_emu_0102eca86219e1dd {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[runtime-status] [31576] Listening to port: \\\\?\\pipe\\fire_emu_0102eca86219e1dd"}}
+[debug] [2025-08-03T20:55:36.010Z] [worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: IDLE {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: IDLE"}}
+[debug] [2025-08-03T20:55:36.010Z] [worker-pool] submitRequest(triggerId=us-central1-generateAiFollowUp) {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] submitRequest(triggerId=us-central1-generateAiFollowUp)"}}
+[info] i  functions: Beginning execution of "us-central1-generateAiFollowUp" {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"Beginning execution of \"us-central1-generateAiFollowUp\""}}
+[debug] [2025-08-03T20:55:36.011Z] [worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: BUSY {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: BUSY"}}
+[warn] !  It looks like you're trying to access functions.config().openai but there is no value there. You can learn more about setting up config here: https://firebase.google.com/docs/functions/local-emulator {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"It looks like you're trying to access functions.config().openai but there is no value there. You can learn more about setting up config here: https://firebase.google.com/docs/functions/local-emulator"}}
+[debug] [2025-08-03T20:55:36.045Z] Finishing up request with event=pause {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"Finishing up request with event=pause"}}
+[info] i  functions: Finished "us-central1-generateAiFollowUp" in 34.1714ms {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"Finished \"us-central1-generateAiFollowUp\" in 34.1714ms"}}
+[debug] [2025-08-03T20:55:36.046Z] [worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: IDLE {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: IDLE"}}
+[debug] [2025-08-03T20:55:36.046Z] Finishing up request with event=finish {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"Finishing up request with event=finish"}}
+[debug] [2025-08-03T20:55:36.046Z] Finishing up request with event=close {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"Finishing up request with event=close"}}
+[debug] [2025-08-03T20:55:36.046Z] [work-queue] {"queuedWork":[],"queueLength":0,"runningWork":[],"workRunningCount":0}
+[debug] [2025-08-03T20:58:00.249Z] File C:\NB\showAI_V3\functions\src\index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File C:\\NB\\showAI_V3\\functions\\src\\index.ts changed, reloading triggers"}}
+[debug] [2025-08-03T20:58:01.255Z] Validating nodejs source
+[debug] [2025-08-03T20:58:02.887Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T20:58:02.887Z] Building nodejs source
+[debug] [2025-08-03T20:58:02.887Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[debug] [2025-08-03T20:58:02.889Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T20:58:02.908Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8284
+
+[debug] [2025-08-03T20:58:03.890Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[debug] [2025-08-03T20:58:07.918Z] defaultcredentials: writing to file C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json
+[debug] [2025-08-03T20:58:07.920Z] Setting GAC to C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to C:\\Users\\andre\\AppData\\Roaming\\firebase\\andrewscottgm_gmail_com_application_default_credentials.json"}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[debug] [2025-08-03T20:58:07.921Z] [worker-pool] Shutting down IDLE worker (us-central1-generateAiFollowUp) {"metadata":{"emulator":{"name":"functions"},"message":"[worker-pool] Shutting down IDLE worker (us-central1-generateAiFollowUp)"}}
+[debug] [2025-08-03T20:58:07.921Z] [worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: FINISHING {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: FINISHING"}}
+[debug] [2025-08-03T20:58:07.934Z] [worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: exited {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: exited"}}
+[debug] [2025-08-03T20:58:07.934Z] [worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: FINISHED {"metadata":{"emulator":{"name":"functions"},"function":{"name":"us-central1-generateAiFollowUp"},"extension":{},"message":"[worker-us-central1-generateAiFollowUp-7c019483-8809-405f-96b2-940083280eed]: FINISHED"}}
+[debug] [2025-08-03T20:58:17.613Z] Received signal SIGHUP 1
+[info]  
+[info] i  emulators: Received SIGHUP for the first time. Starting a clean shutdown. 
+[info] i  emulators: Please wait for a clean shutdown or send the SIGHUP signal again to stop right now. 
+[info] i  emulators: Shutting down emulators. {"metadata":{"emulator":{"name":"hub"},"message":"Shutting down emulators."}}
+[info] i  ui: Stopping Emulator UI {"metadata":{"emulator":{"name":"ui"},"message":"Stopping Emulator UI"}}
+[info] i  extensions: Stopping Extensions Emulator {"metadata":{"emulator":{"name":"extensions"},"message":"Stopping Extensions Emulator"}}
+[debug] [2025-08-03T20:58:17.618Z] [Extensions] Stopping Extensions emulator, this is a noop.
+[info] i  functions: Stopping Functions Emulator {"metadata":{"emulator":{"name":"functions"},"message":"Stopping Functions Emulator"}}
+[info] i  eventarc: Stopping Eventarc Emulator {"metadata":{"emulator":{"name":"eventarc"},"message":"Stopping Eventarc Emulator"}}
+[info] i  tasks: Stopping Cloud Tasks Emulator {"metadata":{"emulator":{"name":"tasks"},"message":"Stopping Cloud Tasks Emulator"}}
+[info] i  hub: Stopping emulator hub {"metadata":{"emulator":{"name":"hub"},"message":"Stopping emulator hub"}}
+[info] i  logging: Stopping Logging Emulator {"metadata":{"emulator":{"name":"logging"},"message":"Stopping Logging Emulator"}}
+[debug] [2025-08-03T20:58:17.628Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[debug] [2025-08-03T21:15:58.507Z] ----------------------------------------------------------------------
+[debug] [2025-08-03T21:15:58.509Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\andre\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js emulators:start
+[debug] [2025-08-03T21:15:58.510Z] CLI Version:   14.11.2
+[debug] [2025-08-03T21:15:58.510Z] Platform:      win32
+[debug] [2025-08-03T21:15:58.510Z] Node Version:  v22.17.1
+[debug] [2025-08-03T21:15:58.511Z] Time:          Sun Aug 03 2025 17:15:58 GMT-0400 (Eastern Daylight Saving Time)
+[debug] [2025-08-03T21:15:58.511Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-03T21:15:58.743Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-03T21:15:58.743Z] > authorizing via signed-in user (andrewscottgm@gmail.com)
+[info] i  emulators: Starting emulators: functions, extensions {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: functions, extensions"}}
+[debug] [2025-08-03T21:15:58.747Z] Checked if tokens are valid: true, expires at: 1754258578458
+[debug] [2025-08-03T21:15:58.747Z] Checked if tokens are valid: true, expires at: 1754258578458
+[debug] [2025-08-03T21:15:58.748Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/showai-23713 [none]
+[debug] [2025-08-03T21:15:59.143Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/showai-23713 200
+[debug] [2025-08-03T21:15:59.143Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/showai-23713 {"projectNumber":"72019299027","projectId":"showai-23713","lifecycleState":"ACTIVE","name":"ShowAI","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-07-30T22:47:09.462094Z"}
+[debug] [2025-08-03T21:15:59.154Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T21:15:59.154Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2025-08-03T21:15:59.160Z] [hub] writing locator at C:\Users\andre\AppData\Local\Temp\hub-showai-23713.json
+[debug] [2025-08-03T21:15:59.168Z] [Extensions] Started Extensions emulator, this is a noop.
+[debug] [2025-08-03T21:15:59.175Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T21:15:59.175Z] [eventarc] Eventarc Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T21:15:59.175Z] [tasks] Cloud Tasks Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-03T21:15:59.175Z] late-assigned ports for functions and eventarc emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"functions":[{"address":"127.0.0.1","family":"IPv4","port":5001}],"eventarc":[{"address":"127.0.0.1","family":"IPv4","port":9299}],"tasks":[{"address":"127.0.0.1","family":"IPv4","port":9499}]},"metadata":{"message":"late-assigned ports for functions and eventarc emulators"}}
+[warn] !  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect {"metadata":{"emulator":{"name":"functions"},"message":"The following emulators are not running, calls to these services from the Functions emulator will affect production: \u001b[1mapphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect\u001b[22m"}}
+[debug] [2025-08-03T21:15:59.218Z] defaultcredentials: writing to file C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json
+[debug] [2025-08-03T21:15:59.219Z] Setting GAC to C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to C:\\Users\\andre\\AppData\\Roaming\\firebase\\andrewscottgm_gmail_com_application_default_credentials.json"}}
+[debug] [2025-08-03T21:15:59.219Z] Checked if tokens are valid: true, expires at: 1754258578458
+[debug] [2025-08-03T21:15:59.220Z] Checked if tokens are valid: true, expires at: 1754258578458
+[debug] [2025-08-03T21:15:59.220Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig [none]
+[debug] [2025-08-03T21:15:59.999Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig 200
+[debug] [2025-08-03T21:15:59.999Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/showai-23713/adminSdkConfig {"projectId":"showai-23713","databaseURL":"https://showai-23713-default-rtdb.firebaseio.com","storageBucket":"showai-23713.firebasestorage.app"}
+[debug] [2025-08-03T21:16:00.027Z] [Extensions] Connecting Extensions emulator, this is a noop.
+[info] i  functions: Watching "C:\NB\showAI_V3\functions" for Cloud Functions... {"metadata":{"emulator":{"name":"functions"},"message":"Watching \"C:\\NB\\showAI_V3\\functions\" for Cloud Functions..."}}
+[debug] [2025-08-03T21:16:00.035Z] Validating nodejs source
+[debug] [2025-08-03T21:16:01.123Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "echo 'Skipping lint...'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}
+[debug] [2025-08-03T21:16:01.123Z] Building nodejs source
+[debug] [2025-08-03T21:16:01.124Z] Failed to find version of module node: reached end of search path C:\NB\showAI_V3\functions\node_modules
+[info] +  functions: Using node@22 from host. 
+[info] i  functions: Loaded environment variables from .env. 
+[debug] [2025-08-03T21:16:01.127Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-08-03T21:16:01.135Z] Found firebase-functions binary at 'C:\NB\showAI_V3\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8761
+
+[debug] [2025-08-03T21:16:02.018Z] Got response from /__/functions.yaml {"endpoints":{"generateAiFollowUp":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateAiFollowUp"},"generateBuyerPersona":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"httpsTrigger":{},"entryPoint":"generateBuyerPersona"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[debug] [2025-08-03T21:16:06.050Z] defaultcredentials: writing to file C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json
+[debug] [2025-08-03T21:16:06.051Z] Setting GAC to C:\Users\andre\AppData\Roaming\firebase\andrewscottgm_gmail_com_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to C:\\Users\\andre\\AppData\\Roaming\\firebase\\andrewscottgm_gmail_com_application_default_credentials.json"}}
+[info] +  functions: Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: generateAiFollowUp, generateBuyerPersona."}}
+[info] +  functions[us-central1-generateAiFollowUp]: http function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp). {"metadata":{"emulator":{"name":"functions"},"message":"\u001b[1mhttp\u001b[22m function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp)."}}
+[info] +  functions[us-central1-generateBuyerPersona]: http function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateBuyerPersona). {"metadata":{"emulator":{"name":"functions"},"message":"\u001b[1mhttp\u001b[22m function initialized (http://127.0.0.1:5001/showai-23713/us-central1/generateBuyerPersona)."}}
+[debug] [2025-08-03T21:16:06.057Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+│ i  View Emulator UI at http://127.0.0.1:4000/               │
+└─────────────────────────────────────────────────────────────┘
+
+┌────────────┬────────────────┬──────────────────────────────────┐
+│ Emulator   │ Host:Port      │ View in Emulator UI              │
+├────────────┼────────────────┼──────────────────────────────────┤
+│ Functions  │ 127.0.0.1:5001 │ http://127.0.0.1:4000/functions  │
+├────────────┼────────────────┼──────────────────────────────────┤
+│ Extensions │ 127.0.0.1:5001 │ http://127.0.0.1:4000/extensions │
+└────────────┴────────────────┴──────────────────────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+┌─────────────────────────┬───────────────┬─────────────────────┐
+│ Extension Instance Name │ Extension Ref │ View in Emulator UI │
+└─────────────────────────┴───────────────┴─────────────────────┘
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+[debug] [2025-08-03T21:19:21.638Z] Received signal SIGHUP 1
+[info]  
+[info] i  emulators: Received SIGHUP for the first time. Starting a clean shutdown. 
+[info] i  emulators: Please wait for a clean shutdown or send the SIGHUP signal again to stop right now. 
+[info] i  emulators: Shutting down emulators. {"metadata":{"emulator":{"name":"hub"},"message":"Shutting down emulators."}}
+[info] i  ui: Stopping Emulator UI {"metadata":{"emulator":{"name":"ui"},"message":"Stopping Emulator UI"}}
+[info] i  extensions: Stopping Extensions Emulator {"metadata":{"emulator":{"name":"extensions"},"message":"Stopping Extensions Emulator"}}
+[debug] [2025-08-03T21:19:21.645Z] [Extensions] Stopping Extensions emulator, this is a noop.
+[info] i  functions: Stopping Functions Emulator {"metadata":{"emulator":{"name":"functions"},"message":"Stopping Functions Emulator"}}
+[info] i  eventarc: Stopping Eventarc Emulator {"metadata":{"emulator":{"name":"eventarc"},"message":"Stopping Eventarc Emulator"}}
+[info] i  tasks: Stopping Cloud Tasks Emulator {"metadata":{"emulator":{"name":"tasks"},"message":"Stopping Cloud Tasks Emulator"}}
+[info] i  hub: Stopping emulator hub {"metadata":{"emulator":{"name":"hub"},"message":"Stopping emulator hub"}}
+[info] i  logging: Stopping Logging Emulator {"metadata":{"emulator":{"name":"logging"},"message":"Stopping Logging Emulator"}}
+[debug] [2025-08-03T21:19:21.657Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
