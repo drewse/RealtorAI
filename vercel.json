@@ -5,5 +5,7 @@
       "use": "@vercel/next"
     }
   ],
-  "ignoreCommand": "echo 'Skipping Firebase functions...'"
+  "routes": [
+    { "src": "/(functions|firebase)/.*", "status": 404 }
+  ]
 }
