@@ -27,7 +27,7 @@ export const generateFollowUpWithAudio = async (
     const isDevelopment = process.env.NEXT_PUBLIC_IS_DEV === 'true';
     const functionUrl = isDevelopment
       ? 'http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp'
-      : 'https://us-central1-showai-23713.cloudfunctions.net/generateAiFollowUp';
+      : 'https://generateaifollowup-x5dsxztz7q-uc.a.run.app';
 
     console.log('🔗 Using enhanced function URL:', functionUrl);
 
@@ -180,7 +180,7 @@ export const generateBuyerPersona = async (
     const isDevelopment = process.env.NEXT_PUBLIC_IS_DEV === 'true';
     const functionUrl = isDevelopment
       ? 'http://127.0.0.1:5001/showai-23713/us-central1/generateBuyerPersona'
-      : 'https://us-central1-showai-23713.cloudfunctions.net/generateBuyerPersona';
+      : 'https://generatebuyerpersona-x5dsxztz7q-uc.a.run.app';
 
     const response = await fetch(functionUrl, {
       method: 'POST',
@@ -252,7 +252,7 @@ export const generateVoiceSummary = async (
     const isDevelopment = process.env.NEXT_PUBLIC_IS_DEV === 'true';
     const functionUrl = isDevelopment
       ? 'http://127.0.0.1:5001/showai-23713/us-central1/generateVoiceSummary'
-      : 'https://us-central1-showai-23713.cloudfunctions.net/generateVoiceSummary';
+      : 'https://generatevoicesummary-x5dsxztz7q-uc.a.run.app';
 
     const response = await fetch(functionUrl, {
       method: 'POST',
@@ -309,7 +309,7 @@ export const scheduleFollowUpDelivery = async (
     const isDevelopment = process.env.NEXT_PUBLIC_IS_DEV === 'true';
     const functionUrl = isDevelopment
       ? 'http://127.0.0.1:5001/showai-23713/us-central1/scheduleFollowUp'
-      : 'https://us-central1-showai-23713.cloudfunctions.net/scheduleFollowUp';
+      : 'https://schedulefollowup-x5dsxztz7q-uc.a.run.app';
 
     const response = await fetch(functionUrl, {
       method: 'POST',
@@ -602,7 +602,7 @@ export const generateFollowUp = async (
     const isDevelopment = process.env.NEXT_PUBLIC_IS_DEV === 'true';
     const functionUrl = isDevelopment
       ? 'http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp'
-      : 'https://us-central1-showai-23713.cloudfunctions.net/generateAiFollowUp';
+      : 'https://generateaifollowup-x5dsxztz7q-uc.a.run.app';
 
     console.log('🔗 Using function URL:', functionUrl);
 
@@ -706,7 +706,7 @@ export const analyzeTranscript = async (
     const isDevelopment = process.env.NEXT_PUBLIC_IS_DEV === 'true';
     const functionUrl = isDevelopment
       ? 'http://127.0.0.1:5001/showai-23713/us-central1/generateAiFollowUp'
-      : 'https://us-central1-showai-23713.cloudfunctions.net/generateAiFollowUp';
+      : 'https://generateaifollowup-x5dsxztz7q-uc.a.run.app';
 
     // 📡 Call Firebase Cloud Function
     const response = await fetch(functionUrl, {

@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * FIRESTORE DATABASE SCHEMA DOCUMENTATION - ENHANCED WITH CLIENT MANAGEMENT & SMART ALERTS
@@ -14,7 +15,7 @@ export interface AgentNote {
   id: string;                          // Unique identifier for the note
   content: string;                     // Note content (max 1000 chars)
   type: 'insight' | 'action-item' | 'objection' | 'general';
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
   createdBy: string;                   // User ID of the creator
   source?: 'manual' | 'ai-generated';  // Optional note origin
 
