@@ -1,0 +1,10 @@
+{
+  "ignoreCommand": "echo 'Skipping build for non-frontend files'",
+  "builds": [
+    {
+      "src": "next.config.js",
+      "use": "@vercel/next"
+    }
+  ],
+  "ignoreFiles": ["functions/**"]
+}
