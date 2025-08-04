@@ -6,7 +6,7 @@ import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, 
 import AuthGuard from '@/components/AuthGuard';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
-import ClientForm from '@/components/ClientForm';
+import RecordingClientForm from '@/components/RecordingClientForm';
 import RecordingControls from '@/components/RecordingControls';
 import TranscriptDisplay from '@/components/TranscriptDisplay';
 import FollowUpDisplay from '@/components/FollowUpDisplay';
@@ -123,6 +123,7 @@ export default function Home() {
     tags: string[];
     propertyAddress: string;
     propertyId: string;
+    selectedClientId?: string;
   }) => {
     console.log('=== CLIENT FORM SUBMITTED ===');
     console.log('🏠 LINK TO PROPERTY ID:', {
@@ -608,7 +609,7 @@ if (transcriptionError instanceof Error) {
                     <p className="text-gray-400">Enter client details to begin</p>
                   </div>
                 </div>
-                <ClientForm onSubmit={handleClientSubmit} />
+                <RecordingClientForm onSubmit={handleClientSubmit} />
               </div>
             )}
 

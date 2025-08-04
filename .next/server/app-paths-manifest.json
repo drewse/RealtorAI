@@ -1,7 +1,9 @@
 {
+  "/clients/page": "app/clients/page.js",
   "/page": "app/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/admin/page": "app/admin/page.js",
   "/properties/page": "app/properties/page.js",
-  "/clients/page": "app/clients/page.js"
+  "/admin/page": "app/admin/page.js",
+  "/qa-tools/page": "app/qa-tools/page.js",
+  "/settings/page": "app/settings/page.js"
 }
