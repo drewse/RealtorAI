@@ -33,18 +33,27 @@ export const generateAiFollowUp = onRequest(
     }
 
     try {
-      const rawKey = process.env.OPENAI_KEY;
-const openaiApiKey = rawKey?.trim(); // 🧼 Remove newlines/spaces
+      // 🔧 UPDATED: Use Firebase Functions config instead of process.env
+      const functions = require('firebase-functions');
+      const config = functions.config();
+      
+      // Try multiple sources for the API key
+      let openaiApiKey = config.openai?.api_key || 
+                        process.env.OPENAI_KEY || 
+                        process.env.OPENAI_API_KEY;
+      
+      openaiApiKey = openaiApiKey?.trim(); // 🧼 Remove newlines/spaces
 
-console.log("🔐 OPENAI_KEY partial (cleaned):", JSON.stringify(openaiApiKey?.slice(0, 10)));
+      console.log("🔐 OPENAI_KEY partial (cleaned):", JSON.stringify(openaiApiKey?.slice(0, 10)));
+      console.log("🔧 Config source:", config.openai?.api_key ? 'firebase-config' : 'env-var');
 
-if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
-  throw new Error('Malformed or missing OpenAI API key');
-}
+      if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
+        throw new Error('Malformed or missing OpenAI API key. Please set it using: firebase functions:config:set openai.api_key="your-key"');
+      }
 
-if (openaiApiKey.startsWith('Bearer ')) {
-  throw new Error('❌ OPENAI_KEY should not include "Bearer " prefix — please update the secret');
-}
+      if (openaiApiKey.startsWith('Bearer ')) {
+        throw new Error('❌ OPENAI_KEY should not include "Bearer " prefix — please update the secret');
+      }
 
       const {
         prompt,
