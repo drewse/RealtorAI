@@ -11,8 +11,8 @@ import RecordingControls from '@/components/RecordingControls';
 import TranscriptDisplay from '@/components/TranscriptDisplay';
 import FollowUpDisplay from '@/components/FollowUpDisplay';
 import { transcribeAudio, mockTranscription } from '@/lib/transcription';
-import { generateFollowUp, initializeOpenAI } from '@/lib/openai';
-import { getStoredAPIKey } from '@/lib/storage';
+import { generateFollowUp } from '@/lib/openai';
+// Removed getStoredAPIKey import - no longer needed with Cloud Functions
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
@@ -245,14 +245,11 @@ export default function Home() {
         };
         setCurrentSession(updatedSession);
 
-        console.log('🤖 AI: Starting OpenAI GPT-4 follow-up generation...');
+        console.log('🤖 AI: Starting AI follow-up generation via Cloud Function...');
         setGeneratingFollowUp(true);
 
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (apiKey && transcriptResult) {
+        if (transcriptResult) {
           try {
-            initializeOpenAI(apiKey);
-
             const followUpData = await generateFollowUp(transcriptResult, currentSession.clientName);
             setFollowUp(followUpData);
 
@@ -269,8 +266,8 @@ export default function Home() {
             console.error('❌ AI GENERATION ERROR:', aiError);
 
             const fallbackFollowUp = {
-              preferences: "Unable to generate preferences summary. Please check your OpenAI API key in settings.",
-              objections: "Unable to generate objections summary. Please check your OpenAI API key in settings.",
+              preferences: "Unable to generate preferences summary. Please try again later.",
+              objections: "Unable to generate objections summary. Please try again later.",
               sms: `Hi ${currentSession.clientName}! Thanks for visiting the property today. Let me know if you have any questions!`,
               email: `Hi ${currentSession.clientName},\n\nThank you for taking the time to view the property today. I hope you found it interesting.\n\nPlease let me know if you have any questions or would like to schedule another viewing.\n\nBest regards,\n[Your Name]`
             };
@@ -279,11 +276,11 @@ export default function Home() {
 
             let errorMessage = 'Unknown error';
             if (aiError instanceof Error) {
-            errorMessage = aiError.message;
+              errorMessage = aiError.message;
             }
 
             await updateDoc(recordingRef, {
-              summary: "AI generation failed - please check OpenAI API key",
+              summary: "AI generation failed - please try again later",
               smsText: fallbackFollowUp.sms,
               emailText: fallbackFollowUp.email,
               status: 'follow-up-ready',
@@ -291,25 +288,6 @@ export default function Home() {
               updatedAt: serverTimestamp(),
             });
           }
-        } else {
-          console.log('⚠️ AI: No OpenAI API key found, using placeholder content');
-
-          const placeholderFollowUp = {
-            preferences: "OpenAI API key not found. Please add your API key in settings to generate AI follow-ups.",
-            objections: "OpenAI API key not found. Please add your API key in settings to generate AI follow-ups.",
-            sms: "API key required for SMS generation.",
-            email: "API key required for email generation.",
-          };
-
-          setFollowUp(placeholderFollowUp);
-
-          await updateDoc(recordingRef, {
-            summary: "OpenAI API key required",
-            smsText: placeholderFollowUp.sms,
-            emailText: placeholderFollowUp.email,
-            status: 'follow-up-ready',
-            updatedAt: serverTimestamp(),
-          });
         }
 
         setGeneratingFollowUp(false);

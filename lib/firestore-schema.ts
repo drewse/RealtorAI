@@ -36,7 +36,6 @@ export interface AgentNote {
 export interface UserDocument {
   uid: string;                    // Firebase Auth UID
   email: string;                  // User email from Firebase Auth
-  openaiApiKey?: string;          // OpenAI API key (encrypted in production)
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
   

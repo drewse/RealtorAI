@@ -768,15 +768,6 @@ export const analyzeTranscript = async (
   }
 };
 
-// 🚫 Deprecated: Legacy OpenAI client functions (kept for backward compatibility)
-let openaiClient: any = null;
-
-export const initializeOpenAI = (apiKey: string) => {
-  console.warn('⚠️ initializeOpenAI is deprecated. AI processing now handled by secure Cloud Functions.');
-  return null;
-};
-
-export const getOpenAIClient = () => {
-  console.warn('⚠️ getOpenAIClient is deprecated. AI processing now handled by secure Cloud Functions.');
-  return null;
-};
+// 🚫 DEPRECATED: Legacy OpenAI client functions - REMOVED
+// AI processing is now handled by secure Firebase Cloud Functions
+// No client-side API key management needed
