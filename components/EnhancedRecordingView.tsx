@@ -69,12 +69,15 @@ export default function EnhancedRecordingView({ recording, onBack }: EnhancedRec
     } else if (recording.aiFollowUpDraft) {
       setFollowUpData(recording.aiFollowUpDraft);
     } else {
-      // Legacy format fallback
+      // Legacy format fallback - include all fields for full tab display
       setFollowUpData({
         preferences: recording.summary || 'No summary available',
         objections: 'No objections analysis available',
         sms: recording.smsText || 'No SMS content available',
         email: recording.emailText || 'No email content available',
+        urgencyLevel: 'medium', // Default urgency level
+        keyTopics: ['Property viewing', 'Client discussion'], // Default topics
+        recommendedActions: ['Schedule follow-up call', 'Send property information'], // Default actions
         tone: recording.followUpTone || 'professional'
       });
     }

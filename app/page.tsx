@@ -53,6 +53,10 @@ type FollowUpData = {
   objections: string;
   sms: string;
   email: string;
+  urgencyLevel?: 'low' | 'medium' | 'high';
+  keyTopics?: string[];
+  recommendedActions?: string[];
+  tone?: 'friendly' | 'professional' | 'direct' | 'action-oriented';
 };
 
 export default function Home() {
@@ -265,11 +269,15 @@ export default function Home() {
           } catch (aiError) {
             console.error('❌ AI GENERATION ERROR:', aiError);
 
-            const fallbackFollowUp = {
+            const fallbackFollowUp: FollowUpData = {
               preferences: "Unable to generate preferences summary. Please try again later.",
               objections: "Unable to generate objections summary. Please try again later.",
               sms: `Hi ${currentSession.clientName}! Thanks for visiting the property today. Let me know if you have any questions!`,
-              email: `Hi ${currentSession.clientName},\n\nThank you for taking the time to view the property today. I hope you found it interesting.\n\nPlease let me know if you have any questions or would like to schedule another viewing.\n\nBest regards,\n[Your Name]`
+              email: `Hi ${currentSession.clientName},\n\nThank you for taking the time to view the property today. I hope you found it interesting.\n\nPlease let me know if you have any questions or would like to schedule another viewing.\n\nBest regards,\n[Your Name]`,
+              urgencyLevel: 'medium',
+              keyTopics: ['Property viewing', 'Client discussion'],
+              recommendedActions: ['Schedule follow-up call', 'Send property information'],
+              tone: 'professional'
             };
 
             setFollowUp(fallbackFollowUp);
