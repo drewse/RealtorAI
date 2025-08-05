@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
@@ -20,6 +20,12 @@ const app = initializeApp(firebaseConfig);
 
 // Firebase Authentication - used for user login/logout and auth state management
 export const auth = getAuth(app);
+
+// Google Auth Provider - used for Google Sign-In
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 // Firestore Database - used for storing user data, recordings, properties, and metadata
 export const db = getFirestore(app);

@@ -2,8 +2,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { auth, googleProvider } from '@/lib/firebase';
+import { createUserDocument } from '@/lib/userUtils';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -38,9 +39,29 @@ export const useAuth = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       console.log('SIGN UP SUCCESS:', userCredential.user.email);
+      
+      // Create user document in Firestore
+      await createUserDocument(userCredential.user);
+      
       return userCredential;
     } catch (error) {
       console.error('SIGN UP ERROR:', error);
+      throw error;
+    }
+  };
+
+  // GOOGLE SIGN IN: Firebase Auth Google authentication
+  const signInWithGoogle = async () => {
+    try {
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      console.log('GOOGLE SIGN IN SUCCESS:', userCredential.user.email);
+      
+      // Create or update user document in Firestore
+      await createUserDocument(userCredential.user);
+      
+      return userCredential;
+    } catch (error) {
+      console.error('GOOGLE SIGN IN ERROR:', error);
       throw error;
     }
   };
@@ -61,6 +82,7 @@ export const useAuth = () => {
     loading,        // LOADING STATE: True while checking auth status
     signIn,         // SIGN IN METHOD: Email/password authentication
     signUp,         // SIGN UP METHOD: Account creation
+    signInWithGoogle, // GOOGLE SIGN IN: Google authentication
     logout,         // LOGOUT METHOD: Sign out current user
   };
 };
