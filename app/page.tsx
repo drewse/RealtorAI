@@ -53,10 +53,10 @@ type FollowUpData = {
   objections: string;
   sms: string;
   email: string;
-  urgencyLevel?: 'low' | 'medium' | 'high';
-  keyTopics?: string[];
-  recommendedActions?: string[];
-  tone?: 'friendly' | 'professional' | 'direct' | 'action-oriented';
+  urgencyLevel: 'low' | 'medium' | 'high';
+  keyTopics: string[];
+  recommendedActions: string[];
+  tone: 'friendly' | 'professional' | 'direct' | 'action-oriented';
 };
 
 export default function Home() {

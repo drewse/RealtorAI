@@ -12,10 +12,10 @@ interface FollowUpData {
   objections: string;
   sms: string;
   email: string;
-  urgencyLevel?: 'low' | 'medium' | 'high';
-  keyTopics?: string[];
-  recommendedActions?: string[];
-  tone?: 'friendly' | 'professional' | 'direct' | 'action-oriented';
+  urgencyLevel: 'low' | 'medium' | 'high';
+  keyTopics: string[];
+  recommendedActions: string[];
+  tone: 'friendly' | 'professional' | 'direct' | 'action-oriented';
 }
 
 interface ScheduledFollowUp {
@@ -25,7 +25,7 @@ interface ScheduledFollowUp {
 }
 
 interface FollowUpDisplayProps {
-  data: FollowUpData;
+  data: Partial<FollowUpData>;
   loading?: boolean;
   clientEmail?: string;
   clientPhone?: string;
@@ -76,15 +76,29 @@ export default function FollowUpDisplay({
   clientName,
   voiceSummaryUrl
 }: FollowUpDisplayProps) {
+  // Ensure data has all required fields with defaults
+  const completeData: FollowUpData = {
+    preferences: data.preferences || 'No preferences found.',
+    objections: data.objections || 'No objections found.',
+    sms: data.sms || 'No SMS content available',
+    email: data.email || 'No email content available',
+    urgencyLevel: data.urgencyLevel || 'medium',
+    keyTopics: data.keyTopics || ['No topics found.'],
+    recommendedActions: data.recommendedActions || ['No recommended actions.'],
+    tone: data.tone || 'professional'
+  };
+
+  console.log('🧠 Final AI Follow-up data:', completeData);
+
   const [activeTab, setActiveTab] = useState<'summary' | 'sms' | 'email' | 'actions'>('summary');
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [selectedTone, setSelectedTone] = useState<'friendly' | 'professional' | 'direct' | 'action-oriented'>(data.tone || 'professional');
+  const [selectedTone, setSelectedTone] = useState<'friendly' | 'professional' | 'direct' | 'action-oriented'>(completeData.tone);
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({});
   const [editedContent, setEditedContent] = useState<{ [key: string]: string }>({
-    preferences: data.preferences || '',
-    objections: data.objections || '',
-    sms: data.sms || '',
-    email: data.email || ''
+    preferences: completeData.preferences,
+    objections: completeData.objections,
+    sms: completeData.sms,
+    email: completeData.email
   });
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -92,12 +106,12 @@ export default function FollowUpDisplay({
 
   useEffect(() => {
     setEditedContent({
-      preferences: data.preferences || '',
-      objections: data.objections || '',
-      sms: data.sms || '',
-      email: data.email || ''
+      preferences: completeData.preferences,
+      objections: completeData.objections,
+      sms: completeData.sms,
+      email: completeData.email
     });
-  }, [data]);
+  }, [completeData]);
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
@@ -156,9 +170,9 @@ export default function FollowUpDisplay({
   const handleCancel = (field: string) => {
     setEditedContent({ 
       ...editedContent, 
-      [field]: field === 'preferences' ? data.preferences : 
-               field === 'objections' ? data.objections :
-               field === 'sms' ? data.sms : data.email
+      [field]: field === 'preferences' ? completeData.preferences : 
+               field === 'objections' ? completeData.objections :
+               field === 'sms' ? completeData.sms : completeData.email
     });
     setEditMode({ ...editMode, [field]: false });
   };
@@ -248,13 +262,11 @@ export default function FollowUpDisplay({
           </div>
 
           {/* Urgency Level Indicator */}
-          {data.urgencyLevel && (
-            <div className="flex items-center justify-between mb-3">
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${getUrgencyColor(data.urgencyLevel)}`}>
-                {data.urgencyLevel.toUpperCase()} Priority
-              </div>
+          <div className="flex items-center justify-between mb-3">
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${getUrgencyColor(completeData.urgencyLevel)}`}>
+              {completeData.urgencyLevel.toUpperCase()} Priority
             </div>
-          )}
+          </div>
 
           {/* Follow-up Tone Selection */}
           <div>
@@ -622,46 +634,31 @@ export default function FollowUpDisplay({
           {activeTab === 'actions' && (
             <div className="space-y-4">
               {/* Key Topics */}
-              {data.keyTopics && data.keyTopics.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-blue-400 mb-2">Discussion Topics</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {data.keyTopics.map((topic, index) => (
-                      <span key={index} className="px-3 py-1 bg-blue-900/30 text-blue-300 rounded-full text-sm">
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
+              <div>
+                <h4 className="font-medium text-blue-400 mb-2">Discussion Topics</h4>
+                <div className="flex flex-wrap gap-2">
+                  {completeData.keyTopics.map((topic, index) => (
+                    <span key={index} className="px-3 py-1 bg-blue-900/30 text-blue-300 rounded-full text-sm">
+                      {topic}
+                    </span>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {/* Recommended Actions */}
-              {data.recommendedActions && data.recommendedActions.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-green-400 mb-2">Recommended Next Steps</h4>
-                  <div className="space-y-2">
-                    {data.recommendedActions.map((action, index) => (
-                      <div key={index} className="flex items-start space-x-3 p-3 bg-gray-900 rounded-lg">
-                        <div className="w-5 h-5 flex items-center justify-center mt-0.5">
-                          <i className="ri-checkbox-circle-line text-green-500"></i>
-                        </div>
-                        <span className="text-gray-300 text-sm">{action}</span>
+              <div>
+                <h4 className="font-medium text-green-400 mb-2">Recommended Next Steps</h4>
+                <div className="space-y-2">
+                  {completeData.recommendedActions.map((action, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-gray-900 rounded-lg">
+                      <div className="w-5 h-5 flex items-center justify-center mt-0.5">
+                        <i className="ri-checkbox-circle-line text-green-500"></i>
                       </div>
-                    ))}
-                  </div>
+                      <span className="text-gray-300 text-sm">{action}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-
-              {(!data.keyTopics || data.keyTopics.length === 0) && 
-               (!data.recommendedActions || data.recommendedActions.length === 0) && (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <i className="ri-todo-line text-4xl text-gray-600"></i>
-                  </div>
-                  <h4 className="text-lg font-medium text-gray-400 mb-2">No Actions Available</h4>
-                  <p className="text-gray-500">Recommended actions will appear here after AI analysis</p>
-                </div>
-              )}
+              </div>
             </div>
           )}
         </div>

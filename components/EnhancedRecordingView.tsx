@@ -63,24 +63,41 @@ export default function EnhancedRecordingView({ recording, onBack }: EnhancedRec
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initialize follow-up data from recording
+    // Initialize follow-up data from recording with complete field coverage
+    let preparedData: any;
+    
     if (recording.aiFollowUpFinal) {
-      setFollowUpData(recording.aiFollowUpFinal);
+      preparedData = recording.aiFollowUpFinal;
     } else if (recording.aiFollowUpDraft) {
-      setFollowUpData(recording.aiFollowUpDraft);
+      preparedData = recording.aiFollowUpDraft;
     } else {
       // Legacy format fallback - include all fields for full tab display
-      setFollowUpData({
-        preferences: recording.summary || 'No summary available',
-        objections: 'No objections analysis available',
+      preparedData = {
+        preferences: recording.summary || 'No preferences found.',
+        objections: 'No objections found.',
         sms: recording.smsText || 'No SMS content available',
         email: recording.emailText || 'No email content available',
-        urgencyLevel: 'medium', // Default urgency level
-        keyTopics: ['Property viewing', 'Client discussion'], // Default topics
-        recommendedActions: ['Schedule follow-up call', 'Send property information'], // Default actions
+        urgencyLevel: 'medium',
+        keyTopics: ['No topics found.'],
+        recommendedActions: ['No recommended actions.'],
         tone: recording.followUpTone || 'professional'
-      });
+      };
     }
+
+    // Ensure all required fields are present with defaults
+    const completeData = {
+      preferences: preparedData.preferences || 'No preferences found.',
+      objections: preparedData.objections || 'No objections found.',
+      sms: preparedData.sms || 'No SMS content available',
+      email: preparedData.email || 'No email content available',
+      urgencyLevel: preparedData.urgencyLevel || 'medium',
+      keyTopics: preparedData.keyTopics || ['No topics found.'],
+      recommendedActions: preparedData.recommendedActions || ['No recommended actions.'],
+      tone: preparedData.tone || 'professional'
+    };
+
+    console.log('🧠 Final AI Follow-up data:', completeData);
+    setFollowUpData(completeData);
   }, [recording]);
 
   const handleToneChange = async (newTone: 'friendly' | 'professional' | 'direct' | 'action-oriented') => {
