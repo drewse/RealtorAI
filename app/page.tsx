@@ -248,7 +248,7 @@ export default function Home() {
         console.log('🤖 AI: Starting OpenAI GPT-4 follow-up generation...');
         setGeneratingFollowUp(true);
 
-        const apiKey = getStoredAPIKey();
+        const apiKey = process.env.OPENAI_API_KEY;
         if (apiKey && transcriptResult) {
           try {
             initializeOpenAI(apiKey);

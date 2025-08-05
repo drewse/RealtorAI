@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "showai-23713"
-  }
+    "default": "showai-23713",
+    "prod": "showai-23713"
+  },
+  "targets": {},
+  "etags": {}
 }
