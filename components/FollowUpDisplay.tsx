@@ -89,6 +89,7 @@ export default function FollowUpDisplay({
   };
 
   console.log('🧠 Final AI Follow-up data:', completeData);
+  console.log('🔍 Raw data received:', data);
 
   const [activeTab, setActiveTab] = useState<'summary' | 'sms' | 'email' | 'actions'>('summary');
   const [copiedField, setCopiedField] = useState<string | null>(null);

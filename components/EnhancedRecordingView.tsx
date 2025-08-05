@@ -86,10 +86,10 @@ export default function EnhancedRecordingView({ recording, onBack }: EnhancedRec
 
     // Ensure all required fields are present with defaults
     const completeData = {
-      preferences: preparedData.preferences || 'No preferences found.',
+      preferences: preparedData.preferences || preparedData.summary || 'No preferences found.',
       objections: preparedData.objections || 'No objections found.',
-      sms: preparedData.sms || 'No SMS content available',
-      email: preparedData.email || 'No email content available',
+      sms: preparedData.sms || preparedData.smsText || 'No SMS content available',
+      email: preparedData.email || preparedData.emailText || 'No email content available',
       urgencyLevel: preparedData.urgencyLevel || 'medium',
       keyTopics: preparedData.keyTopics || ['No topics found.'],
       recommendedActions: preparedData.recommendedActions || ['No recommended actions.'],
@@ -97,6 +97,13 @@ export default function EnhancedRecordingView({ recording, onBack }: EnhancedRec
     };
 
     console.log('🧠 Final AI Follow-up data:', completeData);
+    console.log('🔍 Original recording data:', {
+      aiFollowUpFinal: recording.aiFollowUpFinal,
+      aiFollowUpDraft: recording.aiFollowUpDraft,
+      summary: recording.summary,
+      smsText: recording.smsText,
+      emailText: recording.emailText
+    });
     setFollowUpData(completeData);
   }, [recording]);
 
