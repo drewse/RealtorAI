@@ -10,7 +10,6 @@ import RecordingClientForm from '@/components/RecordingClientForm';
 import RecordingControls from '@/components/RecordingControls';
 import TranscriptDisplay from '@/components/TranscriptDisplay';
 import FollowUpDisplay from '@/components/FollowUpDisplay';
-import RegenerationUtility from '@/components/RegenerationUtility';
 import EnhancedRecordingView from '@/components/EnhancedRecordingView';
 import { transcribeAudio, mockTranscription } from '@/lib/transcription';
 import { generateFollowUp } from '@/lib/openai';
@@ -591,17 +590,7 @@ if (transcriptionError instanceof Error) {
             <h2 className="text-lg font-semibold text-white mb-3">Recording History</h2>
           </div>
 
-          {/* Follow-up Regeneration Utility */}
-          {!recordingsLoading && recordings.length > 0 && (
-            <RegenerationUtility 
-              recordings={recordings}
-              onRegenerationComplete={() => {
-                // Force a refresh of the recordings data
-                console.log('🔄 Refreshing recordings after regeneration...');
-                // The recordings will automatically refresh via the onSnapshot listener
-              }}
-            />
-          )}
+
 
           {recordingsLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
