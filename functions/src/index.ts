@@ -13,12 +13,7 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
   console.log("🔑 OPENAI_KEY =", process.env.OPENAI_KEY?.slice(0, 8));
 }
 
-// ✅ Helper for CORS setup
-const setCorsHeaders = (res: any) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-};
+
 
 // ✅ 1. generateAiFollowUp
 export const generateAiFollowUp = onRequest(
@@ -26,7 +21,12 @@ export const generateAiFollowUp = onRequest(
     secrets: ['OPENAI_KEY'],
   },
   async (req, res) => {
-    setCorsHeaders(res);
+    // Handle CORS for Vercel frontend
+    res.set('Access-Control-Allow-Origin', 'https://realtor-ai-mu.vercel.app');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Allow-Credentials', 'true');
+    
     if (req.method === 'OPTIONS') {
       res.status(200).send('');
       return;
@@ -166,7 +166,12 @@ export const generateBuyerPersona = onRequest(
     secrets: ['OPENAI_KEY'],
   },
   async (req, res) => {
-    setCorsHeaders(res);
+    // Handle CORS for Vercel frontend
+    res.set('Access-Control-Allow-Origin', 'https://realtor-ai-mu.vercel.app');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Allow-Credentials', 'true');
+    
     if (req.method === 'OPTIONS') {
       res.status(200).send('');
       return;
@@ -269,7 +274,12 @@ export const importPropertyFromText = onRequest(
     secrets: ['OPENAI_KEY'],
   },
   async (req, res) => {
-    setCorsHeaders(res);
+    // Handle CORS for Vercel frontend
+    res.set('Access-Control-Allow-Origin', 'https://realtor-ai-mu.vercel.app');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Allow-Credentials', 'true');
+    
     if (req.method === 'OPTIONS') {
       res.status(200).send('');
       return;
