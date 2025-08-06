@@ -25,6 +25,24 @@ interface PropertyFormProps {
   }) => void;
   onCancel: () => void;
   loading?: boolean;
+  // NEW: Edit mode props
+  isEditing?: boolean;
+  initialData?: {
+    address: string;
+    price: number;
+    bedrooms: number;
+    bathrooms: number;
+    sqft: number;
+    description: string;
+    propertyType: string;
+    lotSize?: number;
+    yearBuilt?: number;
+    parking?: string;
+    propertyFeatures: string[];
+    mlsNumber?: string;
+    status: "Active" | "Coming Soon" | "Sold";
+    images: string[];
+  };
 }
 
 const PROPERTY_TYPES = [
@@ -58,25 +76,25 @@ const PROPERTY_FEATURES = [
   'Fenced Yard'
 ];
 
-export default function PropertyForm({ onSubmit, onCancel, loading }: PropertyFormProps) {
+export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = false, initialData }: PropertyFormProps) {
   const [formData, setFormData] = useState({
-    address: '',
-    price: '',
-    bedrooms: '3',
-    bathrooms: '2',
-    sqft: '',
-    description: '',
-    propertyType: 'Single Family',
-    lotSize: '',
-    yearBuilt: '',
-    parking: '',
-    mlsNumber: '',
-    status: 'Active'
+    address: initialData?.address || '',
+    price: initialData?.price?.toString() || '',
+    bedrooms: initialData?.bedrooms?.toString() || '3',
+    bathrooms: initialData?.bathrooms?.toString() || '2',
+    sqft: initialData?.sqft?.toString() || '',
+    description: initialData?.description || '',
+    propertyType: initialData?.propertyType || 'Single Family',
+    lotSize: initialData?.lotSize?.toString() || '',
+    yearBuilt: initialData?.yearBuilt?.toString() || '',
+    parking: initialData?.parking || '',
+    mlsNumber: initialData?.mlsNumber || '',
+    status: initialData?.status || 'Active'
   });
 
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(initialData?.propertyFeatures || []);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>(initialData?.images || []);
   const [uploadingImages, setUploadingImages] = useState(false);
 
   const { user } = useAuth();
@@ -148,7 +166,7 @@ export default function PropertyForm({ onSubmit, onCancel, loading }: PropertyFo
         propertyFeatures: selectedFeatures,
         mlsNumber: formData.mlsNumber.trim() || undefined,
         status: formData.status as "Active" | "Coming Soon" | "Sold",
-        images: imageUrls
+        images: isEditing ? [...imagePreviewUrls, ...imageUrls] : imageUrls
       };
       
       console.log('Enhanced processed data being sent to onSubmit:', processedData);
@@ -525,7 +543,7 @@ export default function PropertyForm({ onSubmit, onCancel, loading }: PropertyFo
             disabled={loading || uploadingImages || !formData.address.trim() || !formData.price || !formData.sqft}
             className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap"
           >
-            {uploadingImages ? 'Uploading Images...' : loading ? 'Adding...' : 'Add Property'}
+            {uploadingImages ? 'Uploading Images...' : loading ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add Property')}
           </button>
         </div>
       </form>

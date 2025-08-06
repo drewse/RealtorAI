@@ -1,0 +1,117 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own documents
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Properties are private to each user - ENHANCED WITH EDITING SUPPORT
+    match /properties/{propertyId} {
+      // Allow read and write if user owns the property
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      
+      // Allow creation with proper validation
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId &&
+        request.resource.data.address is string &&
+        request.resource.data.address.size() > 0 &&
+        request.resource.data.price is number &&
+        request.resource.data.price > 0 &&
+        request.resource.data.bedrooms is number &&
+        request.resource.data.bedrooms > 0 &&
+        request.resource.data.bathrooms is number &&
+        request.resource.data.bathrooms > 0 &&
+        request.resource.data.sqft is number &&
+        request.resource.data.sqft > 0 &&
+        request.resource.data.propertyType is string &&
+        request.resource.data.status in ['Active', 'Coming Soon', 'Sold'];
+      
+      // Allow updates with validation for property editing
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.userId &&
+        request.resource.data.address is string &&
+        request.resource.data.address.size() > 0 &&
+        request.resource.data.price is number &&
+        request.resource.data.price > 0 &&
+        request.resource.data.bedrooms is number &&
+        request.resource.data.bedrooms > 0 &&
+        request.resource.data.bathrooms is number &&
+        request.resource.data.bathrooms > 0 &&
+        request.resource.data.sqft is number &&
+        request.resource.data.sqft > 0 &&
+        request.resource.data.propertyType is string &&
+        request.resource.data.status in ['Active', 'Coming Soon', 'Sold'] &&
+        request.resource.data.propertyFeatures is list;
+    }
+
+    // Recordings are private to each user
+    match /recordings/{recordingId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.uid;
+      
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.uid &&
+        request.resource.data.clientName is string &&
+        request.resource.data.clientName.size() > 0;
+    }
+
+    // Clients are private to each user
+    match /clients/{clientId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.status in ['Active', 'Cold', 'Hot Lead'];
+    }
+
+    // Alerts are private to each user
+    match /alerts/{alertId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId &&
+        request.resource.data.type in ['property-match', 'price-drop', 'status-change', 'follow-up-reminder'];
+    }
+
+    // Scheduled tasks are private to each user
+    match /scheduledTasks/{taskId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId &&
+        request.resource.data.type in ['follow-up-email', 'follow-up-sms', 'reminder', 'cleanup', 'smart-alert-check'];
+    }
+
+    // Agent stats are private to each user
+    match /agentStats/{userId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == userId;
+    }
+
+    // Objection reports are private to each user
+    match /objectionReports/{reportId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+
+    // Agent notes are private to each user
+    match /agentNote/{noteId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.createdBy;
+      
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.createdBy &&
+        request.resource.data.content is string &&
+        request.resource.data.content.size() > 0 &&
+        request.resource.data.type in ['insight', 'action-item', 'objection', 'general'];
+    }
+  }
+} 

@@ -11,6 +11,7 @@ import Navigation from '@/components/Navigation';
 import PropertyForm from '@/components/PropertyForm';
 import PropertyList from '@/components/PropertyList';
 import PropertyStatusHistory from '@/components/PropertyStatusHistory';
+import Toast from '@/components/Toast';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Property {
@@ -77,14 +78,25 @@ export default function PropertiesPage() {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [isEditingProperty, setIsEditingProperty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   // DEFAULT: Start with Active properties tab as the default view
   const [activeTab, setActiveTab] = useState<StatusTab>('Active');
   const [defaultViewLoaded, setDefaultViewLoaded] = useState(false);
 
   const { user } = useAuth();
+
+  // Helper function to show toast notifications
+  const displayToast = (message: string, type: 'success' | 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
 
   // Initialize default view for Properties page
   useEffect(() => {
@@ -183,8 +195,7 @@ export default function PropertiesPage() {
       if (!currentUser || !currentUser.uid) {
         const errorMsg = "You must be logged in to add a property.";
         console.error('3. AUTHENTICATION ERROR:', errorMsg);
-        setErrorMessage(errorMsg);
-        alert(errorMsg); 
+        displayToast(errorMsg, 'error');
         return;
       }
 
@@ -274,8 +285,7 @@ export default function PropertiesPage() {
       console.log('=== END ENHANCED FIRESTORE DEBUG ===');
 
       const successMsg = `Property "${propertyData.address}" added successfully!`;
-      setSuccessMessage(successMsg);
-      alert(successMsg); 
+      displayToast(successMsg, 'success');
       setShowAddForm(false);
 
     } catch (error) {
@@ -286,8 +296,7 @@ export default function PropertiesPage() {
       console.error('=== END ENHANCED ERROR DEBUG ===');
 
       const errorMsg = `Failed to add property: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      setErrorMessage(errorMsg);
-      alert(errorMsg); 
+      displayToast(errorMsg, 'error');
     }
   };
 
@@ -296,6 +305,117 @@ export default function PropertiesPage() {
       await deleteDoc(doc(db, 'properties', propertyId));
     } catch (error) {
       console.error('Error deleting property:', error);
+    }
+  };
+
+  // NEW: Handle property updates
+  const handleUpdateProperty = async (propertyData: Omit<Property, 'id' | 'clients' | 'createdAt' | 'statusHistory' | 'priceHistory'>) => {
+    if (!selectedProperty || !user?.uid) return;
+
+    console.log('=== PROPERTY UPDATE DEBUG ===');
+    console.log('1. Property data received:', propertyData);
+    console.log('2. Selected property ID:', selectedProperty.id);
+
+    try {
+      // Validate required fields
+      const validationResult = {
+        address: !!propertyData.address && propertyData.address.trim().length > 0,
+        price: !!propertyData.price && !isNaN(propertyData.price) && propertyData.price > 0,
+        bedrooms: !!propertyData.bedrooms && !isNaN(propertyData.bedrooms),
+        bathrooms: !!propertyData.bathrooms && !isNaN(propertyData.bathrooms),
+        sqft: !!propertyData.sqft && !isNaN(propertyData.sqft) && propertyData.sqft > 0,
+        propertyType: !!propertyData.propertyType && propertyData.propertyType.trim().length > 0,
+        status: !!propertyData.status && propertyData.status.trim().length > 0
+      };
+
+      console.log('3. Field validation results:', validationResult);
+
+      if (!validationResult.address || !validationResult.price || !validationResult.sqft || 
+          !validationResult.propertyType || !validationResult.status) {
+        const errorMsg = 'Please fill in all required fields with valid values.';
+        console.error('4. VALIDATION ERROR:', errorMsg);
+        displayToast(errorMsg, 'error');
+        return;
+      }
+
+      const now = new Date();
+      const currentTimestamp = now.toISOString();
+
+      // Check if status or price changed to add to history
+      const statusChanged = selectedProperty.status !== propertyData.status;
+      const priceChanged = selectedProperty.price !== propertyData.price;
+
+      // Prepare update data
+      const updateData: any = {
+        address: propertyData.address.trim(),
+        price: Number(propertyData.price),
+        bedrooms: Number(propertyData.bedrooms),
+        bathrooms: Number(propertyData.bathrooms),
+        sqft: Number(propertyData.sqft),
+        description: propertyData.description ? propertyData.description.trim() : '',
+        propertyType: propertyData.propertyType,
+        lotSize: propertyData.lotSize ? Number(propertyData.lotSize) : null,
+        yearBuilt: propertyData.yearBuilt ? Number(propertyData.yearBuilt) : null,
+        parking: propertyData.parking ? propertyData.parking.trim() : null,
+        propertyFeatures: propertyData.propertyFeatures || [],
+        mlsNumber: propertyData.mlsNumber ? propertyData.mlsNumber.trim() : null,
+        status: propertyData.status,
+        images: propertyData.images || [],
+        updatedAt: serverTimestamp(),
+      };
+
+      // Add status history if status changed
+      if (statusChanged) {
+        const statusHistoryEntry = {
+          id: uuidv4(),
+          fromStatus: selectedProperty.status,
+          toStatus: propertyData.status,
+          changedBy: user.uid,
+          changedAt: currentTimestamp,
+          reason: 'Property details updated',
+          notes: 'Status changed during property update'
+        };
+        updateData.statusHistory = arrayUnion(statusHistoryEntry);
+      }
+
+      // Add price history if price changed
+      if (priceChanged) {
+        const priceHistoryEntry = {
+          id: uuidv4(),
+          fromPrice: selectedProperty.price,
+          toPrice: Number(propertyData.price),
+          changedBy: user.uid,
+          changedAt: currentTimestamp,
+          reason: 'Property details updated',
+          notes: 'Price changed during property update'
+        };
+        updateData.priceHistory = arrayUnion(priceHistoryEntry);
+      }
+
+      console.log('5. Final update data:', updateData);
+      console.log('6. Updating property document...');
+
+      const propertyRef = doc(db, 'properties', selectedProperty.id);
+      await updateDoc(propertyRef, updateData);
+
+      console.log('7. SUCCESS: Property updated successfully');
+      console.log('=== END PROPERTY UPDATE DEBUG ===');
+
+      const successMsg = `Property "${propertyData.address}" updated successfully!`;
+              displayToast(successMsg, 'success');
+      
+      // Exit edit mode and refresh the selected property
+      setIsEditingProperty(false);
+      setSelectedProperty(null);
+
+    } catch (error) {
+      console.error('=== PROPERTY UPDATE ERROR DEBUG ===');
+      console.error('Error details:', error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('=== END PROPERTY UPDATE ERROR DEBUG ===');
+
+      const errorMsg = `Failed to update property: ${error instanceof Error ? error.message : 'Unknown error'}`;
+              displayToast(errorMsg, 'error');
     }
   };
 
@@ -374,23 +494,67 @@ export default function PropertiesPage() {
           <Header />
 
           <div className="max-w-md mx-auto px-4 py-6 space-y-6">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setSelectedProperty(null)}
-                className="text-gray-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <i className="ri-arrow-left-line text-xl"></i>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => {
+                    setSelectedProperty(null);
+                    setIsEditingProperty(false);
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    <i className="ri-arrow-left-line text-xl"></i>
+                  </div>
+                </button>
+                <div>
+                  <h1 className="text-xl font-bold text-white">Property Details</h1>
+                  <p className="text-gray-400 text-sm">{selectedProperty.address}</p>
                 </div>
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-white">Property Details</h1>
-                <p className="text-gray-400 text-sm">{selectedProperty.address}</p>
               </div>
+              
+              {/* Edit Button */}
+              {!isEditingProperty && (
+                <button
+                  onClick={() => setIsEditingProperty(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors cursor-pointer flex items-center space-x-2"
+                >
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-edit-line"></i>
+                  </div>
+                  <span>Edit</span>
+                </button>
+              )}
             </div>
 
+            {/* Edit Property Form */}
+            {isEditingProperty && (
+              <PropertyForm
+                onSubmit={handleUpdateProperty}
+                onCancel={() => setIsEditingProperty(false)}
+                loading={false}
+                isEditing={true}
+                initialData={{
+                  address: selectedProperty.address,
+                  price: selectedProperty.price,
+                  bedrooms: selectedProperty.bedrooms,
+                  bathrooms: selectedProperty.bathrooms,
+                  sqft: selectedProperty.sqft,
+                  description: selectedProperty.description,
+                  propertyType: selectedProperty.propertyType,
+                  lotSize: selectedProperty.lotSize,
+                  yearBuilt: selectedProperty.yearBuilt,
+                  parking: selectedProperty.parking,
+                  propertyFeatures: selectedProperty.propertyFeatures,
+                  mlsNumber: selectedProperty.mlsNumber,
+                  status: selectedProperty.status,
+                  images: selectedProperty.images
+                }}
+              />
+            )}
+
             {/* Enhanced Property Images */}
-            {selectedProperty.images && selectedProperty.images.length > 0 && (
+            {!isEditingProperty && selectedProperty.images && selectedProperty.images.length > 0 && (
               <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
                 <div className="grid grid-cols-2 gap-1">
                   {selectedProperty.images.slice(0, 4).map((imageUrl, index) => (
@@ -412,135 +576,150 @@ export default function PropertiesPage() {
             )}
 
             {/* Enhanced Property Details */}
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Status</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${ 
-                    selectedProperty.status === 'Active' ? 'bg-green-900/30 text-green-300' :
-                    selectedProperty.status === 'Coming Soon' ? 'bg-yellow-900/30 text-yellow-300' :
-                    'bg-red-900/30 text-red-300'
-                  }`}>
-                    {selectedProperty.status}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Property Type</span>
-                  <span className="text-white font-medium">{selectedProperty.propertyType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Price</span>
-                  <span className="text-white font-medium">${selectedProperty.price.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Bedrooms</span>
-                  <span className="text-white">{selectedProperty.bedrooms}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Bathrooms</span>
-                  <span className="text-white">{selectedProperty.bathrooms}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Square Feet</span>
-                  <span className="text-white">{selectedProperty.sqft.toLocaleString()}</span>
-                </div>
-                {selectedProperty.lotSize && (
+            {!isEditingProperty && (
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Status</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${ 
+                      selectedProperty.status === 'Active' ? 'bg-green-900/30 text-green-300' :
+                      selectedProperty.status === 'Coming Soon' ? 'bg-yellow-900/30 text-yellow-300' :
+                      'bg-red-900/30 text-red-300'
+                    }`}>
+                      {selectedProperty.status}
+                    </span>
+                  </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Lot Size</span>
-                    <span className="text-white">{selectedProperty.lotSize.toLocaleString()} sq ft</span>
+                    <span className="text-gray-400">Property Type</span>
+                    <span className="text-white font-medium">{selectedProperty.propertyType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Price</span>
+                    <span className="text-white font-medium">${selectedProperty.price.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Bedrooms</span>
+                    <span className="text-white">{selectedProperty.bedrooms}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Bathrooms</span>
+                    <span className="text-white">{selectedProperty.bathrooms}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Square Feet</span>
+                    <span className="text-white">{selectedProperty.sqft.toLocaleString()}</span>
+                  </div>
+                  {selectedProperty.lotSize && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Lot Size</span>
+                      <span className="text-white">{selectedProperty.lotSize.toLocaleString()} sq ft</span>
+                    </div>
+                  )}
+                  {selectedProperty.yearBuilt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Year Built</span>
+                      <span className="text-white">{selectedProperty.yearBuilt}</span>
+                    </div>
+                  )}
+                  {selectedProperty.parking && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Parking</span>
+                      <span className="text-white">{selectedProperty.parking}</span>
+                    </div>
+                  )}
+                  {selectedProperty.mlsNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">MLS Number</span>
+                      <span className="text-white">{selectedProperty.mlsNumber}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Linked Recordings</span>
+                    <span className="text-blue-400 font-medium">{recordingCount}</span>
+                  </div>
+                </div>
+                
+                {/* Property Features */}
+                {selectedProperty.propertyFeatures && selectedProperty.propertyFeatures.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <h4 className="text-gray-400 text-sm font-medium mb-2">Features</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedProperty.propertyFeatures.map((feature, index) => (
+                        <span key={index} className="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
-                {selectedProperty.yearBuilt && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Year Built</span>
-                    <span className="text-white">{selectedProperty.yearBuilt}</span>
+                
+                {selectedProperty.description && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <p className="text-gray-300 text-sm">{selectedProperty.description}</p>
                   </div>
                 )}
-                {selectedProperty.parking && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Parking</span>
-                    <span className="text-white">{selectedProperty.parking}</span>
-                  </div>
-                )}
-                {selectedProperty.mlsNumber && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">MLS Number</span>
-                    <span className="text-white">{selectedProperty.mlsNumber}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Linked Recordings</span>
-                  <span className="text-blue-400 font-medium">{recordingCount}</span>
-                </div>
               </div>
-              
-              {/* Property Features */}
-              {selectedProperty.propertyFeatures && selectedProperty.propertyFeatures.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <h4 className="text-gray-400 text-sm font-medium mb-2">Features</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedProperty.propertyFeatures.map((feature, index) => (
-                      <span key={index} className="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">
-                        {feature}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {selectedProperty.description && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <p className="text-gray-300 text-sm">{selectedProperty.description}</p>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* NEW: Property Status History Component */}
-            <PropertyStatusHistory
-              statusHistory={selectedProperty.statusHistory || []}
-              priceHistory={selectedProperty.priceHistory || []}
-              loading={false}
-            />
+            {!isEditingProperty && (
+              <PropertyStatusHistory
+                statusHistory={selectedProperty.statusHistory || []}
+                priceHistory={selectedProperty.priceHistory || []}
+                loading={false}
+              />
+            )}
 
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-4 h-4 flex items-center justify-center">
-                  <i className="ri-user-line text-blue-500"></i>
+            {/* Clients Section */}
+            {!isEditingProperty && (
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-user-line text-blue-500"></i>
+                  </div>
+                  <h3 className="font-medium text-white">Clients</h3>
                 </div>
-                <h3 className="font-medium text-white">Clients</h3>
+
+                {selectedProperty.clients?.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No clients recorded for this property yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedProperty.clients?.map((client) => (
+                      <div key={client.id} className="bg-gray-900 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="text-white font-medium">{client.name}</h4>
+                          <span className={`px-2 py-1 rounded-full text-xs ${ 
+                            client.status === 'interested' ? 'bg-green-900 text-green-300' :
+                            client.status === 'not_interested' ? 'bg-red-900 text-red-300' :
+                            'bg-yellow-900 text-yellow-300'
+                          }`}>
+                            {client.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className="space-y-1 text-sm text-gray-400">
+                          <p>{client.email}</p>
+                          <p>{client.phone}</p>
+                          {client.showingDate && <p>Showing: {client.showingDate}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {selectedProperty.clients?.length === 0 ? (
-                <p className="text-gray-400 text-sm">No clients recorded for this property yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {selectedProperty.clients?.map((client) => (
-                    <div key={client.id} className="bg-gray-900 rounded-lg p-3">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-white font-medium">{client.name}</h4>
-                        <span className={`px-2 py-1 rounded-full text-xs ${ 
-                          client.status === 'interested' ? 'bg-green-900 text-green-300' :
-                          client.status === 'not_interested' ? 'bg-red-900 text-red-300' :
-                          'bg-yellow-900 text-yellow-300'
-                        }`}>
-                          {client.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-sm text-gray-400">
-                        <p>{client.email}</p>
-                        <p>{client.phone}</p>
-                        {client.showingDate && <p>Showing: {client.showingDate}</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
+            )}
           </div>
 
           <Navigation />
         </div>
+        
+        {/* Toast Notifications */}
+        {showToast && (
+          <Toast
+            message={toastMessage}
+            type={toastType}
+            onClose={() => setShowToast(false)}
+          />
+        )}
       </AuthGuard>
     );
   }
@@ -780,6 +959,15 @@ export default function PropertiesPage() {
         </div>
 
         <Navigation />
+        
+        {/* Toast Notifications */}
+        {showToast && (
+          <Toast
+            message={toastMessage}
+            type={toastType}
+            onClose={() => setShowToast(false)}
+          />
+        )}
       </div>
     </AuthGuard>
   );
