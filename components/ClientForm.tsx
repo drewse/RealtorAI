@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
+import TagInput from './TagInput';
 import { Client, ClientFormData } from '@/lib/types';
 
 interface ClientFormProps {
@@ -26,7 +27,7 @@ export default function ClientForm({ client, onSubmit, onCancel, loading }: Clie
   const [email, setEmail] = useState(client?.email || '');
   const [phone, setPhone] = useState(client?.phone || '');
   const [status, setStatus] = useState<'Active' | 'Cold' | 'Hot Lead'>(client?.status || 'Active');
-  const [tagsInput, setTagsInput] = useState(client?.tags?.join(', ') || '');
+  const [tags, setTags] = useState<string[]>(client?.tags || []);
   
   // Property preferences
   const [priceMin, setPriceMin] = useState(client?.preferences?.priceRange?.min?.toString() || '');
@@ -53,11 +54,7 @@ export default function ClientForm({ client, onSubmit, onCancel, loading }: Clie
       return;
     }
 
-    // Process tags
-    const tags = tagsInput
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0);
+    // Tags are already processed as an array
 
     // Process preferred areas
     const preferredAreas = preferredAreasInput
@@ -229,33 +226,12 @@ export default function ClientForm({ client, onSubmit, onCancel, loading }: Clie
             </div>
           </div>
 
-          <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-gray-300 mb-2">
-              Tags
-              <span className="text-gray-500 text-xs ml-2">(comma-separated)</span>
-            </label>
-            <input
-              type="text"
-              id="tags"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="first-time buyer, budget-conscious, family"
-            />
-            {tagsInput && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {tagsInput
-                  .split(',')
-                  .map(tag => tag.trim())
-                  .filter(tag => tag.length > 0)
-                  .map((tag, index) => (
-                    <span key={index} className="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">
-                      {tag}
-                    </span>
-                  ))}
-              </div>
-            )}
-          </div>
+          <TagInput
+            value={tags}
+            onChange={setTags}
+            placeholder="first-time buyer, budget-conscious, family"
+            label="Tags"
+          />
         </div>
 
         {/* Property Preferences */}

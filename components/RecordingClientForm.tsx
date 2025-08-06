@@ -5,6 +5,7 @@ import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'f
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 import ClientSelector from '@/components/ClientSelector';
+import TagInput from '@/components/TagInput';
 
 interface RecordingClientFormProps {
   onSubmit: (data: {
@@ -66,7 +67,7 @@ export default function RecordingClientForm({ onSubmit, loading }: RecordingClie
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
-  const [tagsInput, setTagsInput] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [selectedProperty, setSelectedProperty] = useState('');
   const [properties, setProperties] = useState<Property[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -120,11 +121,7 @@ export default function RecordingClientForm({ onSubmit, loading }: RecordingClie
     if (clientName.trim() && clientEmail.trim() && selectedProperty && consentGiven) {
       const property = properties.find(p => p.id === selectedProperty);
       if (property) {
-        // Process tags: split by comma and trim whitespace
-        const tags = tagsInput
-          .split(',')
-          .map(tag => tag.trim())
-          .filter(tag => tag.length > 0);
+        // Tags are already processed as an array
 
         // Create enhanced property context for AI integration
         const propertyContext: EnhancedPropertyContext = {
@@ -230,13 +227,13 @@ export default function RecordingClientForm({ onSubmit, loading }: RecordingClie
             setClientName(client.name);
             setClientEmail(client.email);
             setClientPhone(client.phone || '');
-            setTagsInput(client.tags.join(', '));
+            setTags(client.tags);
           } else {
             setSelectedClientId('');
             setClientName('');
             setClientEmail('');
             setClientPhone('');
-            setTagsInput('');
+            setTags([]);
           }
         }}
         showDropdown={showClientDropdown}
@@ -288,33 +285,12 @@ export default function RecordingClientForm({ onSubmit, loading }: RecordingClie
       </div>
 
       {/* Enhanced Tags Input Field */}
-      <div>
-        <label htmlFor="tags" className="block text-sm font-medium text-gray-300 mb-2">
-          Tags
-          <span className="text-gray-500 text-xs ml-2">(comma-separated)</span>
-        </label>
-        <input
-          type="text"
-          id="tags"
-          value={tagsInput}
-          onChange={(e) => setTagsInput(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-          placeholder="first-time buyer, budget-conscious, family"
-        />
-        {tagsInput && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {tagsInput
-              .split(',')
-              .map(tag => tag.trim())
-              .filter(tag => tag.length > 0)
-              .map((tag, index) => (
-                <span key={index} className="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">
-                  {tag}
-                </span>
-              ))}
-          </div>
-        )}
-      </div>
+      <TagInput
+        value={tags}
+        onChange={setTags}
+        placeholder="first-time buyer, budget-conscious, family"
+        label="Tags"
+      />
 
       {/* NEW: Agent Notes Field */}
       <div>

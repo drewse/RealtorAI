@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
+import TagInput from './TagInput';
 
 interface PropertyFormProps {
   onSubmit: (data: {
@@ -92,7 +93,14 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
     status: initialData?.status || 'Active'
   });
 
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(initialData?.propertyFeatures || []);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(() => {
+    if (!initialData?.propertyFeatures) return [];
+    return initialData.propertyFeatures.filter(feature => PROPERTY_FEATURES.includes(feature));
+  });
+  const [customFeatures, setCustomFeatures] = useState<string[]>(() => {
+    if (!initialData?.propertyFeatures) return [];
+    return initialData.propertyFeatures.filter(feature => !PROPERTY_FEATURES.includes(feature));
+  });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>(initialData?.images || []);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -163,7 +171,7 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
         lotSize: formData.lotSize ? parseInt(formData.lotSize) : undefined,
         yearBuilt: formData.yearBuilt ? parseInt(formData.yearBuilt) : undefined,
         parking: formData.parking.trim() || undefined,
-        propertyFeatures: selectedFeatures,
+        propertyFeatures: [...selectedFeatures, ...customFeatures],
         mlsNumber: formData.mlsNumber.trim() || undefined,
         status: formData.status as "Active" | "Coming Soon" | "Sold",
         images: isEditing ? [...imagePreviewUrls, ...imageUrls] : imageUrls
@@ -444,26 +452,62 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
         {/* Property Features Section */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Property Features</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {PROPERTY_FEATURES.map(feature => (
-              <label key={feature} className="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={selectedFeatures.includes(feature)}
-                  onChange={() => handleFeatureToggle(feature)}
-                  className="w-4 h-4 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <span>{feature}</span>
-              </label>
-            ))}
-          </div>
-          {selectedFeatures.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {selectedFeatures.map(feature => (
-                <span key={feature} className="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">
-                  {feature}
-                </span>
+          
+          {/* Predefined Features */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Common Features</label>
+            <div className="grid grid-cols-2 gap-2">
+              {PROPERTY_FEATURES.map(feature => (
+                <label key={feature} className="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer hover:text-white transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedFeatures.includes(feature)}
+                    onChange={() => handleFeatureToggle(feature)}
+                    className="w-4 h-4 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span>{feature}</span>
+                </label>
               ))}
+            </div>
+            {selectedFeatures.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedFeatures.map(feature => (
+                  <span key={feature} className="px-2 py-1 bg-green-900/30 text-green-300 rounded-full text-xs">
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Custom Features */}
+          <div>
+            <TagInput
+              value={customFeatures}
+              onChange={setCustomFeatures}
+              placeholder="Type custom features like: Zen Garden, Soundproof Walls, Smart Home System..."
+              label="Custom Features"
+            />
+          </div>
+
+          {/* Combined Features Preview */}
+          {([...selectedFeatures, ...customFeatures].length > 0) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">All Features</label>
+              <div className="flex flex-wrap gap-1">
+                {[...selectedFeatures, ...customFeatures].map((feature, index) => (
+                  <span 
+                    key={index} 
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      selectedFeatures.includes(feature) 
+                        ? 'bg-green-900/30 text-green-300' 
+                        : 'bg-blue-900/30 text-blue-300'
+                    }`}
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
