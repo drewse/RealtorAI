@@ -292,16 +292,43 @@ export const importPropertyFromText = onRequest(
       console.log("🔐 OPENAI_KEY partial (cleaned):", JSON.stringify(openaiApiKey?.slice(0, 10)));
 
       if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
-        throw new Error('❌ OPENAI_KEY is missing or malformed. Make sure it is set using: firebase functions:secrets:set OPENAI_KEY');
+        console.error('❌ OPENAI_KEY validation failed');
+        res.status(400).json({
+          success: false,
+          error: 'Configuration error',
+          message: 'OpenAI API key is missing or malformed. Please contact support.',
+        });
+        return;
       }
 
       const { content, userId } = req.body;
       
-      if (!content || !userId) {
-        throw new Error('Content and userId are required');
+      // Validate required fields
+      if (!content || typeof content !== 'string') {
+        console.error('❌ Invalid content provided:', { content, type: typeof content });
+        res.status(400).json({
+          success: false,
+          error: 'Invalid input',
+          message: 'Content must be a non-empty string',
+        });
+        return;
       }
 
-      console.log('🏠 Property import request:', { contentLength: content.length, userId });
+      if (!userId || typeof userId !== 'string') {
+        console.error('❌ Invalid userId provided:', { userId, type: typeof userId });
+        res.status(400).json({
+          success: false,
+          error: 'Invalid input',
+          message: 'Valid userId is required',
+        });
+        return;
+      }
+
+      console.log('🏠 Property import request:', { 
+        contentLength: content.length, 
+        userId,
+        isUrl: content.startsWith('http')
+      });
 
       let processedContent = content;
 
@@ -312,24 +339,48 @@ export const importPropertyFromText = onRequest(
           const response = await fetch(content, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
+            },
+            timeout: 10000 // 10 second timeout
           });
           
           if (!response.ok) {
-            throw new Error(`Failed to fetch URL: ${response.status}`);
+            console.error('❌ URL fetch failed:', response.status, response.statusText);
+            res.status(400).json({
+              success: false,
+              error: 'URL fetch failed',
+              message: `Failed to fetch URL: ${response.status} ${response.statusText}`,
+            });
+            return;
           }
           
           processedContent = await response.text();
           console.log('✅ HTML fetched successfully, length:', processedContent.length);
         } catch (error) {
           console.error('❌ Error fetching URL:', error);
-          // Fall back to using the URL as text
-          processedContent = content;
+          res.status(400).json({
+            success: false,
+            error: 'URL fetch error',
+            message: `Failed to fetch URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          });
+          return;
         }
       }
 
+      // Validate processed content
+      if (!processedContent || processedContent.trim().length === 0) {
+        console.error('❌ No content to process');
+        res.status(400).json({
+          success: false,
+          error: 'No content',
+          message: 'No content available for processing',
+        });
+        return;
+      }
+
+      console.log('🤖 Sending to OpenAI for parsing, content length:', processedContent.length);
+
       // Send to OpenAI for parsing
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -340,20 +391,23 @@ export const importPropertyFromText = onRequest(
           messages: [
             {
               role: 'system',
-              content: `You are a real estate listing parser. Given raw HTML or a listing description, extract:
-- address (full address)
-- city
-- province/state
-- postalCode
-- price (number only)
-- bedrooms (number only)
-- bathrooms (number only, can be decimal)
-- squareFootage (number only)
-- listingDescription (property description)
-- features (array of feature tags)
-- imageUrls (array of image URLs)
+              content: `You are a real estate listing parser. Given raw HTML or a listing description, extract the following fields and respond with valid JSON only:
 
-Respond with valid JSON only. If a field is not found, use null or empty string as appropriate.`,
+{
+  "address": "full address string",
+  "city": "city name",
+  "province": "province/state name", 
+  "postalCode": "postal/zip code",
+  "price": number,
+  "bedrooms": number,
+  "bathrooms": number,
+  "squareFootage": number,
+  "listingDescription": "property description text",
+  "features": ["array", "of", "feature", "tags"],
+  "imageUrls": ["array", "of", "image", "urls"]
+}
+
+If a field is not found, use null for strings and 0 for numbers. Ensure the response is valid JSON.`,
             },
             {
               role: 'user',
@@ -365,36 +419,71 @@ Respond with valid JSON only. If a field is not found, use null or empty string 
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ OpenAI response error:", response.status, errorText);
-        throw new Error(`OpenAI API error: ${response.status}`);
+      if (!openaiResponse.ok) {
+        const errorText = await openaiResponse.text();
+        console.error("❌ OpenAI API error:", openaiResponse.status, errorText);
+        res.status(500).json({
+          success: false,
+          error: 'AI processing failed',
+          message: `OpenAI API error: ${openaiResponse.status}`,
+        });
+        return;
       }
 
-      const result = await response.json();
-      const aiContent = result.choices[0]?.message?.content;
+      const openaiResult = await openaiResponse.json();
+      const aiContent = openaiResult.choices?.[0]?.message?.content;
+
+      if (!aiContent) {
+        console.error('❌ No content in OpenAI response:', openaiResult);
+        res.status(500).json({
+          success: false,
+          error: 'AI processing failed',
+          message: 'No content received from AI service',
+        });
+        return;
+      }
+
+      console.log('🔍 Raw AI response:', aiContent);
 
       let parsedData;
       try {
         parsedData = JSON.parse(aiContent);
+        console.log('✅ JSON parsed successfully:', parsedData);
       } catch (parseError) {
-        console.error('❌ Error parsing OpenAI response:', parseError);
-        throw new Error('Failed to parse property data from AI response');
+        console.error('❌ JSON parse error:', parseError);
+        console.error('❌ Raw AI content that failed to parse:', aiContent);
+        res.status(500).json({
+          success: false,
+          error: 'Data parsing failed',
+          message: 'Failed to parse property data from AI response. Please try again.',
+        });
+        return;
       }
 
-      // Provide fallback values for missing fields
+      // Validate parsed data structure
+      if (!parsedData || typeof parsedData !== 'object') {
+        console.error('❌ Parsed data is not an object:', parsedData);
+        res.status(500).json({
+          success: false,
+          error: 'Invalid data structure',
+          message: 'AI returned invalid data structure',
+        });
+        return;
+      }
+
+      // Provide fallback values for missing fields with validation
       const propertyData = {
         address: parsedData.address || 'Address not found',
         city: parsedData.city || '',
         province: parsedData.province || parsedData.state || '',
         postalCode: parsedData.postalCode || '',
-        price: parsedData.price || 0,
-        bedrooms: parsedData.bedrooms || 0,
-        bathrooms: parsedData.bathrooms || 0,
-        sqft: parsedData.squareFootage || 0,
+        price: typeof parsedData.price === 'number' ? parsedData.price : 0,
+        bedrooms: typeof parsedData.bedrooms === 'number' ? parsedData.bedrooms : 0,
+        bathrooms: typeof parsedData.bathrooms === 'number' ? parsedData.bathrooms : 0,
+        sqft: typeof parsedData.squareFootage === 'number' ? parsedData.squareFootage : 0,
         description: parsedData.listingDescription || '',
-        propertyFeatures: parsedData.features || [],
-        images: parsedData.imageUrls || [],
+        propertyFeatures: Array.isArray(parsedData.features) ? parsedData.features : [],
+        images: Array.isArray(parsedData.imageUrls) ? parsedData.imageUrls : [],
         // Additional fields for PropertyForm compatibility
         propertyType: 'Single Family', // Default, user can change
         status: 'Active', // Default, user can change
@@ -404,7 +493,14 @@ Respond with valid JSON only. If a field is not found, use null or empty string 
         mlsNumber: '',
       };
 
-      console.log('✅ Property data parsed successfully:', propertyData);
+      console.log('✅ Property data processed successfully:', {
+        address: propertyData.address,
+        price: propertyData.price,
+        bedrooms: propertyData.bedrooms,
+        bathrooms: propertyData.bathrooms,
+        featuresCount: propertyData.propertyFeatures.length,
+        imagesCount: propertyData.images.length
+      });
 
       res.status(200).json({
         success: true,
@@ -413,14 +509,15 @@ Respond with valid JSON only. If a field is not found, use null or empty string 
           timestamp: new Date().toISOString(),
           userId,
           contentLength: content.length,
+          processedContentLength: processedContent.length,
         },
       });
     } catch (error) {
-      console.error("❌ Error importing property:", error);
+      console.error("❌ Unexpected error in importPropertyFromText:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to import property',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Internal server error',
+        message: 'An unexpected error occurred. Please try again.',
       });
     }
   }
