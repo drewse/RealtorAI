@@ -11,6 +11,7 @@ import Navigation from '@/components/Navigation';
 import PropertyForm from '@/components/PropertyForm';
 import PropertyList from '@/components/PropertyList';
 import PropertyStatusHistory from '@/components/PropertyStatusHistory';
+import PropertyImporterModal from '@/components/PropertyImporterModal';
 import Toast from '@/components/Toast';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -85,6 +86,8 @@ export default function PropertiesPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [showImporterModal, setShowImporterModal] = useState(false);
+  const [importedPropertyData, setImportedPropertyData] = useState<any>(null);
   // DEFAULT: Start with Active properties tab as the default view
   const [activeTab, setActiveTab] = useState<StatusTab>('Active');
   const [defaultViewLoaded, setDefaultViewLoaded] = useState(false);
@@ -96,6 +99,13 @@ export default function PropertiesPage() {
     setToastMessage(message);
     setToastType(type);
     setShowToast(true);
+  };
+
+  const handleImportSuccess = (propertyData: any) => {
+    // Store the imported data and show the form
+    setImportedPropertyData(propertyData);
+    setShowAddForm(true);
+    displayToast('Property data imported successfully! Please review and save.', 'success');
   };
 
   // Initialize default view for Properties page
@@ -735,14 +745,27 @@ export default function PropertiesPage() {
               <h1 className="text-2xl font-bold text-white mb-2">Properties</h1>
               <p className="text-gray-400">Manage your property listings</p>
             </div>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-colors cursor-pointer whitespace-nowrap"
-            >
-              <div className="w-5 h-5 flex items-center justify-center">
-                <i className="ri-add-line text-white text-xl"></i>
-              </div>
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setShowImporterModal(true)}
+                className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center space-x-2 transition-colors cursor-pointer text-sm font-medium"
+                title="Add by Link or Description"
+              >
+                <div className="w-4 h-4 flex items-center justify-center">
+                  <i className="ri-download-line text-white"></i>
+                </div>
+                <span className="text-white">Import</span>
+              </button>
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-colors cursor-pointer whitespace-nowrap"
+                title="Add Property"
+              >
+                <div className="w-5 h-5 flex items-center justify-center">
+                  <i className="ri-add-line text-white text-xl"></i>
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Status Tabs - DEFAULT: Active is selected */}
@@ -820,7 +843,9 @@ export default function PropertiesPage() {
                     setShowAddForm(false);
                     setErrorMessage(''); 
                     setSuccessMessage(''); 
+                    setImportedPropertyData(null);
                   }}
+                  initialData={importedPropertyData}
                 />
               </div>
             </div>
@@ -960,6 +985,13 @@ export default function PropertiesPage() {
 
         <Navigation />
         
+        {/* Property Importer Modal */}
+        <PropertyImporterModal
+          isOpen={showImporterModal}
+          onClose={() => setShowImporterModal(false)}
+          onImportSuccess={handleImportSuccess}
+        />
+
         {/* Toast Notifications */}
         {showToast && (
           <Toast

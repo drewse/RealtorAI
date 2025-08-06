@@ -263,4 +263,157 @@ export const generateBuyerPersona = onRequest(
   }
 );
 
+// ✅ 3. importPropertyFromText
+export const importPropertyFromText = onRequest(
+  {
+    secrets: ['OPENAI_KEY'],
+  },
+  async (req, res) => {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') {
+      res.status(200).send('');
+      return;
+    }
+
+    try {
+      // 🔧 UPDATED: Use Firebase Functions v2 secrets instead of deprecated config()
+      const openaiApiKey = (process.env.OPENAI_KEY || process.env.OPENAI_API_KEY || '').trim();
+
+      console.log("🔐 OPENAI_KEY partial (cleaned):", JSON.stringify(openaiApiKey?.slice(0, 10)));
+
+      if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
+        throw new Error('❌ OPENAI_KEY is missing or malformed. Make sure it is set using: firebase functions:secrets:set OPENAI_KEY');
+      }
+
+      const { content, userId } = req.body;
+      
+      if (!content || !userId) {
+        throw new Error('Content and userId are required');
+      }
+
+      console.log('🏠 Property import request:', { contentLength: content.length, userId });
+
+      let processedContent = content;
+
+      // Check if content is a URL and fetch HTML
+      if (content.startsWith('http://') || content.startsWith('https://')) {
+        try {
+          console.log('🌐 Fetching HTML from URL:', content);
+          const response = await fetch(content, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch URL: ${response.status}`);
+          }
+          
+          processedContent = await response.text();
+          console.log('✅ HTML fetched successfully, length:', processedContent.length);
+        } catch (error) {
+          console.error('❌ Error fetching URL:', error);
+          // Fall back to using the URL as text
+          processedContent = content;
+        }
+      }
+
+      // Send to OpenAI for parsing
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4-turbo-preview',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a real estate listing parser. Given raw HTML or a listing description, extract:
+- address (full address)
+- city
+- province/state
+- postalCode
+- price (number only)
+- bedrooms (number only)
+- bathrooms (number only, can be decimal)
+- squareFootage (number only)
+- listingDescription (property description)
+- features (array of feature tags)
+- imageUrls (array of image URLs)
+
+Respond with valid JSON only. If a field is not found, use null or empty string as appropriate.`,
+            },
+            {
+              role: 'user',
+              content: processedContent,
+            },
+          ],
+          max_tokens: 1000,
+          temperature: 0.1,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ OpenAI response error:", response.status, errorText);
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const aiContent = result.choices[0]?.message?.content;
+
+      let parsedData;
+      try {
+        parsedData = JSON.parse(aiContent);
+      } catch (parseError) {
+        console.error('❌ Error parsing OpenAI response:', parseError);
+        throw new Error('Failed to parse property data from AI response');
+      }
+
+      // Provide fallback values for missing fields
+      const propertyData = {
+        address: parsedData.address || 'Address not found',
+        city: parsedData.city || '',
+        province: parsedData.province || parsedData.state || '',
+        postalCode: parsedData.postalCode || '',
+        price: parsedData.price || 0,
+        bedrooms: parsedData.bedrooms || 0,
+        bathrooms: parsedData.bathrooms || 0,
+        sqft: parsedData.squareFootage || 0,
+        description: parsedData.listingDescription || '',
+        propertyFeatures: parsedData.features || [],
+        images: parsedData.imageUrls || [],
+        // Additional fields for PropertyForm compatibility
+        propertyType: 'Single Family', // Default, user can change
+        status: 'Active', // Default, user can change
+        lotSize: null,
+        yearBuilt: null,
+        parking: '',
+        mlsNumber: '',
+      };
+
+      console.log('✅ Property data parsed successfully:', propertyData);
+
+      res.status(200).json({
+        success: true,
+        data: propertyData,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          userId,
+          contentLength: content.length,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error importing property:", error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to import property',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
 
