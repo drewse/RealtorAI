@@ -469,15 +469,6 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
                 </label>
               ))}
             </div>
-            {selectedFeatures.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {selectedFeatures.map(feature => (
-                  <span key={feature} className="px-2 py-1 bg-green-900/30 text-green-300 rounded-full text-xs">
-                    {feature}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Custom Features */}
