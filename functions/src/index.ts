@@ -298,14 +298,10 @@ export const importPropertyFromText = onRequest(
         console.log("🧠 Headers: " + JSON.stringify(req.headers));
         console.log("🌍 Origin: " + req.headers.origin);
         
-        // Health check endpoint for Cloud Run
-        if (req.path === '/health' || req.path === '/') {
-          console.log('🏥 Health check request received');
-          res.status(200).json({
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            function: 'importPropertyFromText'
-          });
+        // Health check endpoint for Cloud Run - only intercept actual health checks
+        if (req.method === 'GET' && (req.path === '/health' || req.path === '/')) {
+          console.log('🏥 Cloud Run health check request received');
+          res.status(200).send("OK");
           return;
         }
         
