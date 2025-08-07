@@ -316,15 +316,31 @@ export const importPropertyFromText = onRequest(
         
         // 📥 Structured logging of incoming request body
         console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+        console.log('📥 Request body type:', typeof req.body);
+        console.log('📥 Request body keys:', req.body ? Object.keys(req.body) : 'undefined');
         
         // Validate text field exists in request body
-        const { text, content, userId } = req.body;
+        const { text, content, userId } = req.body || {};
         
-        if (!text && !content) {
-          console.warn('⚠️ Missing text input in request body');
+        // Check if req.body is missing or text is empty/undefined
+        if (!req.body || (!text && !content)) {
+          console.error('❌ No content available for processing');
+          console.error('❌ req.body:', req.body);
+          console.error('❌ text field:', text);
+          console.error('❌ content field:', content);
           res.status(400).json({
-            success: false,
-            message: "Missing text input."
+            error: "No content available for processing"
+          });
+          return;
+        }
+        
+        // Additional validation for empty strings
+        if ((text === '' || text === undefined) && (content === '' || content === undefined)) {
+          console.error('❌ Empty content provided');
+          console.error('❌ text field:', text);
+          console.error('❌ content field:', content);
+          res.status(400).json({
+            error: "No content available for processing"
           });
           return;
         }

@@ -67,26 +67,40 @@ export default function PropertyImporterModal({
         ? 'http://127.0.0.1:5001/showai-23713/us-central1/importPropertyFromText'
         : 'https://importpropertyfromtext-x5dsxztz7q-uc.a.run.app';
 
+      // Prepare request body with text field
+      const requestBody = {
+        text: content.trim(),
+        userId: user.uid,
+      };
+
+      // Log the full request being sent
+      console.log('📤 Sending request to:', functionUrl);
+      console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          content: content.trim(),
-          userId: user.uid,
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      // Log the full response
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}`);
+        console.error('❌ Error response:', errorData);
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
       }
 
       const result = await response.json();
+      console.log('✅ Success response:', result);
       
       if (result.success) {
         setSuccess(true);
+        console.log('🎉 Property import successful!');
         // Pass the parsed data to the parent component
         onImportSuccess(result.data);
         // Close modal after a brief delay to show success state
