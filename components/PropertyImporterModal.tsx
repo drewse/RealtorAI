@@ -5,22 +5,20 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface PropertyData {
   address: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  price: number;
-  bedrooms: number;
-  bathrooms: number;
-  sqft: number;
-  description: string;
-  propertyFeatures: string[];
-  images: string[];
   propertyType: string;
   status: string;
-  lotSize?: number;
+  price: number;
+  squareFeet: number;
+  bedrooms: number;
+  bathrooms: number;
+  lotSizeSqFt: number;
   yearBuilt?: number;
   parking: string;
   mlsNumber: string;
+  features: { [key: string]: boolean };
+  customFeatures: string;
+  images: string[];
+  description: string;
 }
 
 interface PropertyImporterModalProps {

@@ -421,58 +421,160 @@ export const importPropertyFromText = onRequest(
             console.log('🧹 Starting HTML parsing with cheerio...');
             const $ = cheerio.load(rawHtml);
             
-            // Extract key property information using Realtor.ca specific selectors
-            const extractedContent = [
-              // Title/Address - Realtor.ca specific selectors
-              $('h1, .title, .listing-title, .property-title, [class*="title"], .address-title').text().trim(),
-              
-              // Price - Realtor.ca specific selectors
-              $('.price, .listing-price, .property-price, [class*="price"], .amount, .price-amount, .listing-amount').text().trim(),
-              
-              // Address/Location - Realtor.ca specific selectors
-              $('.address, .location, .property-address, [class*="address"], .street-address, .property-location').text().trim(),
-              
-              // Property details (beds, baths, sqft) - Realtor.ca specific selectors
-              $('.property-details, .listing-details, .details, [class*="details"], .beds, .baths, .sqft, .property-stats, .listing-stats').text().trim(),
-              
-              // Description - Realtor.ca specific selectors
-              $('.description, .listing-description, .property-description, [class*="description"], .summary, .property-summary').text().trim(),
-              
-              // Features/Amenities - Realtor.ca specific selectors
-              $('.features, .amenities, .property-features, [class*="feature"], .highlights, .property-highlights').text().trim(),
-              
-              // Main content area - Realtor.ca specific selectors
-              $('main, .main-content, .content, .listing-content, .property-content, .listing-main').text().trim(),
-              
-              // Fallback to body text if other selectors don't work
-              $('body').text().trim()
-            ].filter(text => text.length > 0);
+            // 🏠 Extract specific property fields for Realtor.ca
+            console.log('🔍 Starting detailed field extraction for Realtor.ca...');
             
-            console.log('🔍 Extracted content sections:', extractedContent.length);
-            extractedContent.forEach((content, index) => {
-              console.log(`📝 Section ${index + 1} (${content.length} chars):`, content.substring(0, 100) + '...');
+            // Extract address
+            const address = $('h1, .title, .listing-title, .property-title, [class*="title"], .address-title, .street-address').first().text().trim();
+            console.log('📍 Extracted address:', address);
+            
+            // Extract price
+            const priceText = $('.price, .listing-price, .property-price, [class*="price"], .amount, .price-amount, .listing-amount').first().text().trim();
+            const price = priceText ? parseInt(priceText.replace(/[^0-9]/g, '')) : 0;
+            console.log('💰 Extracted price:', priceText, '→ Parsed:', price);
+            
+            // Extract property type
+            const propertyType = $('.property-type, .listing-type, [class*="type"], .category').first().text().trim() || 'Single Family';
+            console.log('🏘️ Extracted property type:', propertyType);
+            
+            // Extract status
+            const status = $('.status, .listing-status, [class*="status"]').first().text().trim() || 'Active';
+            console.log('📊 Extracted status:', status);
+            
+            // Extract square footage
+            const sqftText = $('.sqft, .square-feet, .area, [class*="sqft"], [class*="area"]').first().text().trim();
+            const squareFeet = sqftText ? parseInt(sqftText.replace(/[^0-9]/g, '')) : 0;
+            console.log('📏 Extracted square feet:', sqftText, '→ Parsed:', squareFeet);
+            
+            // Extract bedrooms
+            const bedsText = $('.beds, .bedrooms, [class*="bed"]').first().text().trim();
+            const bedrooms = bedsText ? parseInt(bedsText.replace(/[^0-9]/g, '')) : 0;
+            console.log('🛏️ Extracted bedrooms:', bedsText, '→ Parsed:', bedrooms);
+            
+            // Extract bathrooms
+            const bathsText = $('.baths, .bathrooms, [class*="bath"]').first().text().trim();
+            const bathrooms = bathsText ? parseInt(bathsText.replace(/[^0-9]/g, '')) : 0;
+            console.log('🚿 Extracted bathrooms:', bathsText, '→ Parsed:', bathrooms);
+            
+            // Extract lot size
+            const lotSizeText = $('.lot-size, .lot-area, [class*="lot"]').first().text().trim();
+            const lotSizeSqFt = lotSizeText ? parseInt(lotSizeText.replace(/[^0-9]/g, '')) : 0;
+            console.log('🌳 Extracted lot size:', lotSizeText, '→ Parsed:', lotSizeSqFt);
+            
+            // Extract year built
+            const yearBuiltText = $('.year-built, .built-year, [class*="year"]').first().text().trim();
+            const yearBuilt = yearBuiltText ? parseInt(yearBuiltText.replace(/[^0-9]/g, '')) : null;
+            console.log('🏗️ Extracted year built:', yearBuiltText, '→ Parsed:', yearBuilt);
+            
+            // Extract parking
+            const parking = $('.parking, .garage, [class*="parking"]').first().text().trim() || '';
+            console.log('🚗 Extracted parking:', parking);
+            
+            // Extract MLS number
+            const mlsNumber = $('.mls, .mls-number, [class*="mls"]').first().text().trim() || '';
+            console.log('🏷️ Extracted MLS number:', mlsNumber);
+            
+            // Extract description
+            const description = $('.description, .listing-description, .property-description, [class*="description"], .summary, .property-summary').first().text().trim();
+            console.log('📝 Extracted description length:', description.length);
+            
+            // Extract features and amenities
+            const featuresText = $('.features, .amenities, .property-features, [class*="feature"], .highlights, .property-highlights').text().trim();
+            console.log('✨ Extracted features text:', featuresText.substring(0, 100) + '...');
+            
+            // Extract images
+            const images: string[] = [];
+            $('img[src*="realtor"], .listing-image img, .property-image img, [class*="image"] img').each((_, img) => {
+              const src = $(img).attr('src');
+              if (src && src.startsWith('http')) {
+                images.push(src);
+              }
+            });
+            console.log('🖼️ Extracted images count:', images.length);
+            
+            // Parse features into structured format
+            const featureKeywords = [
+              'Ensuite', 'Fireplace', 'Walk-in Closet', 'Hardwood Floors', 'Granite Countertops',
+              'Stainless Steel Appliances', 'Central Air', 'Central Heat', 'Garage', 'Basement',
+              'Deck', 'Patio', 'Pool', 'Garden', 'Balcony', 'Elevator', 'Doorman', 'Gym',
+              'Pool', 'Spa', 'Tennis Court', 'Playground', 'Parking', 'Storage'
+            ];
+            
+            const features: { [key: string]: boolean } = {};
+            featureKeywords.forEach(keyword => {
+              features[keyword] = featuresText.toLowerCase().includes(keyword.toLowerCase());
             });
             
-            // Combine all extracted content into a single readable string
-            processedContent = extractedContent.join('\n\n');
+            console.log('🔧 Parsed features:', features);
             
-            // Clean up the content
-            processedContent = processedContent
-              .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
-              .replace(/\n\s*\n/g, '\n')  // Replace multiple newlines with single newline
-              .trim();
+            // Extract custom features (features not in predefined list)
+            const customFeaturesArray: string[] = [];
+            const allFeatures = featuresText.split(/[,;]/).map(f => f.trim()).filter(f => f.length > 0);
+            allFeatures.forEach(feature => {
+              if (!featureKeywords.some(keyword => feature.toLowerCase().includes(keyword.toLowerCase()))) {
+                customFeaturesArray.push(feature);
+              }
+            });
+            const customFeatures = customFeaturesArray.join(', ');
+            console.log('🎨 Extracted custom features:', customFeatures);
             
-            console.log('🧹 Cleaned content length:', processedContent.length);
-            console.log('📄 Final processed content preview:', processedContent.substring(0, 200) + '...');
+            // Validate required fields
+            const requiredFields = { address, price, bedrooms, bathrooms, description };
+            const missingFields = Object.entries(requiredFields)
+              .filter(([key, value]) => !value || (typeof value === 'string' && value.trim() === '') || (typeof value === 'number' && value === 0))
+              .map(([key]) => key);
             
-            // Validate that we extracted meaningful content
-            if (processedContent.length < 50) {
-              console.error('❌ Insufficient content extracted from Realtor.ca URL');
+            if (missingFields.length > 0) {
+              console.error('❌ Missing required fields:', missingFields);
               res.status(400).json({
-                error: "Unable to extract property information from the Realtor.ca listing. Please try a different listing or enter the description manually."
+                error: "Unable to extract property information from the Realtor.ca listing. Missing required fields: " + missingFields.join(', ')
               });
               return;
             }
+            
+            // Construct the property object matching the manual form structure
+            const propertyData = {
+              address,
+              propertyType,
+              status,
+              price,
+              squareFeet,
+              bedrooms,
+              bathrooms,
+              lotSizeSqFt,
+              yearBuilt,
+              parking,
+              mlsNumber,
+              features,
+              customFeatures,
+              images,
+              description
+            };
+            
+            console.log('✅ Successfully extracted property data:', {
+              address: propertyData.address,
+              price: propertyData.price,
+              bedrooms: propertyData.bedrooms,
+              bathrooms: propertyData.bathrooms,
+              featuresCount: Object.keys(propertyData.features).filter(k => propertyData.features[k]).length,
+              customFeatures: propertyData.customFeatures,
+              imagesCount: propertyData.images.length
+            });
+            
+            // Return the extracted property data directly
+            res.status(200).json({
+              success: true,
+              message: "Property information extracted successfully from Realtor.ca listing.",
+              data: propertyData,
+              metadata: {
+                timestamp: new Date().toISOString(),
+                userId,
+                source: 'realtor.ca',
+                url: inputText,
+                extractionMethod: 'cheerio'
+              }
+            });
+            return;
             
           } catch (error) {
             console.error('❌ Error fetching Realtor.ca URL:', error);
