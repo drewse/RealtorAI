@@ -421,76 +421,220 @@ export const importPropertyFromText = onRequest(
             console.log('🧹 Starting HTML parsing with cheerio...');
             const $ = cheerio.load(rawHtml);
             
-            // 🏠 Extract specific property fields for Realtor.ca
-            console.log('🔍 Starting detailed field extraction for Realtor.ca...');
+            // 🏠 Extract property fields using structured data (ld+json) first, then fallback to manual parsing
+            console.log('🔍 Starting structured data extraction for Realtor.ca...');
             
-            // Extract address
-            const address = $('h1, .title, .listing-title, .property-title, [class*="title"], .address-title, .street-address').first().text().trim();
-            console.log('📍 Extracted address:', address);
+            let address = '';
+            let price = 0;
+            let propertyType = 'Single Family';
+            let status = 'Active';
+            let squareFeet = 0;
+            let bedrooms = 0;
+            let bathrooms = 0;
+            let lotSizeSqFt = 0;
+            let yearBuilt: number | null = null;
+            let parking = '';
+            let mlsNumber = '';
+            let description = '';
+            let images: string[] = [];
+            let featuresText = '';
             
-            // Extract price
-            const priceText = $('.price, .listing-price, .property-price, [class*="price"], .amount, .price-amount, .listing-amount').first().text().trim();
-            const price = priceText ? parseInt(priceText.replace(/[^0-9]/g, '')) : 0;
-            console.log('💰 Extracted price:', priceText, '→ Parsed:', price);
+            // Try to extract structured data from ld+json first
+            try {
+              const rawJson = $('script[type="application/ld+json"]').first().html();
+              if (rawJson) {
+                console.log('📄 Found ld+json structured data, parsing...');
+                const listingData = JSON.parse(rawJson);
+                console.log('🔍 Parsed listingData structure:', Object.keys(listingData));
+                console.log('📊 Full listingData (truncated):', JSON.stringify(listingData, null, 2).substring(0, 1000) + '...');
+                
+                // Extract address from structured data
+                if (listingData.address) {
+                  const streetAddress = listingData.address.streetAddress || '';
+                  const addressLocality = listingData.address.addressLocality || '';
+                  address = `${streetAddress} ${addressLocality}`.trim();
+                  console.log('📍 Extracted address from ld+json:', address);
+                }
+                
+                // Extract property type
+                if (listingData['@type']) {
+                  propertyType = listingData['@type'].replace('Product', '').replace('RealEstateListing', '').trim() || 'Single Family';
+                  console.log('🏘️ Extracted property type from ld+json:', propertyType);
+                }
+                
+                // Extract price
+                if (listingData.offers && listingData.offers.price) {
+                  price = parseInt(listingData.offers.price.toString().replace(/[^0-9]/g, ''));
+                  console.log('💰 Extracted price from ld+json:', listingData.offers.price, '→ Parsed:', price);
+                } else if (listingData.price) {
+                  price = parseInt(listingData.price.toString().replace(/[^0-9]/g, ''));
+                  console.log('💰 Extracted price from ld+json:', listingData.price, '→ Parsed:', price);
+                }
+                
+                // Extract bedrooms
+                if (listingData.numberOfRooms) {
+                  bedrooms = parseInt(listingData.numberOfRooms.toString());
+                  console.log('🛏️ Extracted bedrooms from ld+json:', bedrooms);
+                }
+                
+                // Extract bathrooms
+                if (listingData.numberOfBathroomsTotal) {
+                  bathrooms = parseInt(listingData.numberOfBathroomsTotal.toString());
+                  console.log('🚿 Extracted bathrooms from ld+json:', bathrooms);
+                } else if (listingData.numberOfBathrooms) {
+                  bathrooms = parseInt(listingData.numberOfBathrooms.toString());
+                  console.log('🚿 Extracted bathrooms from ld+json:', bathrooms);
+                }
+                
+                // Extract description
+                if (listingData.description) {
+                  description = listingData.description;
+                  console.log('📝 Extracted description from ld+json, length:', description.length);
+                }
+                
+                // Extract images
+                if (listingData.image) {
+                  if (Array.isArray(listingData.image)) {
+                    images = listingData.image.filter((img: string) => img && img.startsWith('http'));
+                  } else if (typeof listingData.image === 'string') {
+                    images = [listingData.image];
+                  }
+                  console.log('🖼️ Extracted images from ld+json, count:', images.length);
+                }
+                
+                // Extract MLS number
+                if (listingData.mlsId) {
+                  mlsNumber = listingData.mlsId.toString();
+                  console.log('🏷️ Extracted MLS number from ld+json:', mlsNumber);
+                } else {
+                  // Fallback: extract from URL
+                  const urlParts = inputText.split('/');
+                  const lastPart = urlParts[urlParts.length - 1];
+                  if (lastPart && lastPart.match(/^\d+$/)) {
+                    mlsNumber = lastPart;
+                    console.log('🏷️ Extracted MLS number from URL:', mlsNumber);
+                  }
+                }
+                
+                // Extract square footage
+                if (listingData.floorSize) {
+                  squareFeet = parseInt(listingData.floorSize.toString().replace(/[^0-9]/g, ''));
+                  console.log('📏 Extracted square feet from ld+json:', squareFeet);
+                }
+                
+                // Extract lot size
+                if (listingData.lotSize) {
+                  lotSizeSqFt = parseInt(listingData.lotSize.toString().replace(/[^0-9]/g, ''));
+                  console.log('🌳 Extracted lot size from ld+json:', lotSizeSqFt);
+                }
+                
+                // Extract year built
+                if (listingData.yearBuilt) {
+                  yearBuilt = parseInt(listingData.yearBuilt.toString());
+                  console.log('🏗️ Extracted year built from ld+json:', yearBuilt);
+                }
+                
+                console.log('✅ Successfully extracted data from ld+json structured data');
+              } else {
+                console.log('⚠️ No ld+json structured data found, falling back to manual parsing');
+              }
+            } catch (ldJsonError) {
+              console.error('❌ Error parsing ld+json structured data:', ldJsonError);
+              console.log('🔄 Falling back to manual HTML parsing...');
+            }
             
-            // Extract property type
-            const propertyType = $('.property-type, .listing-type, [class*="type"], .category').first().text().trim() || 'Single Family';
-            console.log('🏘️ Extracted property type:', propertyType);
+            // Fallback to manual HTML parsing for missing fields
+            console.log('🔍 Starting manual HTML parsing for missing fields...');
             
-            // Extract status
-            const status = $('.status, .listing-status, [class*="status"]').first().text().trim() || 'Active';
-            console.log('📊 Extracted status:', status);
+            // Extract address if not found in ld+json
+            if (!address) {
+              address = $('h1, .title, .listing-title, .property-title, [class*="title"], .address-title, .street-address').first().text().trim();
+              console.log('📍 Extracted address from HTML:', address);
+            }
             
-            // Extract square footage
-            const sqftText = $('.sqft, .square-feet, .area, [class*="sqft"], [class*="area"]').first().text().trim();
-            const squareFeet = sqftText ? parseInt(sqftText.replace(/[^0-9]/g, '')) : 0;
-            console.log('📏 Extracted square feet:', sqftText, '→ Parsed:', squareFeet);
+            // Extract price if not found in ld+json
+            if (!price) {
+              const priceText = $('.price, .listing-price, .property-price, [class*="price"], .amount, .price-amount, .listing-amount').first().text().trim();
+              price = priceText ? parseInt(priceText.replace(/[^0-9]/g, '')) : 0;
+              console.log('💰 Extracted price from HTML:', priceText, '→ Parsed:', price);
+            }
             
-            // Extract bedrooms
-            const bedsText = $('.beds, .bedrooms, [class*="bed"]').first().text().trim();
-            const bedrooms = bedsText ? parseInt(bedsText.replace(/[^0-9]/g, '')) : 0;
-            console.log('🛏️ Extracted bedrooms:', bedsText, '→ Parsed:', bedrooms);
+            // Extract property type if not found in ld+json
+            if (propertyType === 'Single Family') {
+              const propertyTypeText = $('.property-type, .listing-type, [class*="type"], .category').first().text().trim();
+              if (propertyTypeText) {
+                propertyType = propertyTypeText;
+                console.log('🏘️ Extracted property type from HTML:', propertyType);
+              }
+            }
             
-            // Extract bathrooms
-            const bathsText = $('.baths, .bathrooms, [class*="bath"]').first().text().trim();
-            const bathrooms = bathsText ? parseInt(bathsText.replace(/[^0-9]/g, '')) : 0;
-            console.log('🚿 Extracted bathrooms:', bathsText, '→ Parsed:', bathrooms);
+            // Extract square footage if not found in ld+json
+            if (!squareFeet) {
+              const sqftText = $('.sqft, .square-feet, .area, [class*="sqft"], [class*="area"]').first().text().trim();
+              squareFeet = sqftText ? parseInt(sqftText.replace(/[^0-9]/g, '')) : 0;
+              console.log('📏 Extracted square feet from HTML:', sqftText, '→ Parsed:', squareFeet);
+            }
             
-            // Extract lot size
-            const lotSizeText = $('.lot-size, .lot-area, [class*="lot"]').first().text().trim();
-            const lotSizeSqFt = lotSizeText ? parseInt(lotSizeText.replace(/[^0-9]/g, '')) : 0;
-            console.log('🌳 Extracted lot size:', lotSizeText, '→ Parsed:', lotSizeSqFt);
+            // Extract bedrooms if not found in ld+json
+            if (!bedrooms) {
+              const bedsText = $('.beds, .bedrooms, [class*="bed"]').first().text().trim();
+              bedrooms = bedsText ? parseInt(bedsText.replace(/[^0-9]/g, '')) : 0;
+              console.log('🛏️ Extracted bedrooms from HTML:', bedsText, '→ Parsed:', bedrooms);
+            }
             
-            // Extract year built
-            const yearBuiltText = $('.year-built, .built-year, [class*="year"]').first().text().trim();
-            const yearBuilt = yearBuiltText ? parseInt(yearBuiltText.replace(/[^0-9]/g, '')) : null;
-            console.log('🏗️ Extracted year built:', yearBuiltText, '→ Parsed:', yearBuilt);
+            // Extract bathrooms if not found in ld+json
+            if (!bathrooms) {
+              const bathsText = $('.baths, .bathrooms, [class*="bath"]').first().text().trim();
+              bathrooms = bathsText ? parseInt(bathsText.replace(/[^0-9]/g, '')) : 0;
+              console.log('🚿 Extracted bathrooms from HTML:', bathsText, '→ Parsed:', bathrooms);
+            }
+            
+            // Extract lot size if not found in ld+json
+            if (!lotSizeSqFt) {
+              const lotSizeText = $('.lot-size, .lot-area, [class*="lot"]').first().text().trim();
+              lotSizeSqFt = lotSizeText ? parseInt(lotSizeText.replace(/[^0-9]/g, '')) : 0;
+              console.log('🌳 Extracted lot size from HTML:', lotSizeText, '→ Parsed:', lotSizeSqFt);
+            }
+            
+            // Extract year built if not found in ld+json
+            if (!yearBuilt) {
+              const yearBuiltText = $('.year-built, .built-year, [class*="year"]').first().text().trim();
+              yearBuilt = yearBuiltText ? parseInt(yearBuiltText.replace(/[^0-9]/g, '')) : null;
+              console.log('🏗️ Extracted year built from HTML:', yearBuiltText, '→ Parsed:', yearBuilt);
+            }
             
             // Extract parking
-            const parking = $('.parking, .garage, [class*="parking"]').first().text().trim() || '';
-            console.log('🚗 Extracted parking:', parking);
+            if (!parking) {
+              parking = $('.parking, .garage, [class*="parking"]').first().text().trim() || '';
+              console.log('🚗 Extracted parking from HTML:', parking);
+            }
             
-            // Extract MLS number
-            const mlsNumber = $('.mls, .mls-number, [class*="mls"]').first().text().trim() || '';
-            console.log('🏷️ Extracted MLS number:', mlsNumber);
+            // Extract MLS number if not found in ld+json
+            if (!mlsNumber) {
+              mlsNumber = $('.mls, .mls-number, [class*="mls"]').first().text().trim() || '';
+              console.log('🏷️ Extracted MLS number from HTML:', mlsNumber);
+            }
             
-            // Extract description
-            const description = $('.description, .listing-description, .property-description, [class*="description"], .summary, .property-summary').first().text().trim();
-            console.log('📝 Extracted description length:', description.length);
+            // Extract description if not found in ld+json
+            if (!description) {
+              description = $('.description, .listing-description, .property-description, [class*="description"], .summary, .property-summary').first().text().trim();
+              console.log('📝 Extracted description from HTML, length:', description.length);
+            }
+            
+            // Extract images if not found in ld+json
+            if (images.length === 0) {
+              $('img[src*="realtor"], .listing-image img, .property-image img, [class*="image"] img').each((_, img) => {
+                const src = $(img).attr('src');
+                if (src && src.startsWith('http')) {
+                  images.push(src);
+                }
+              });
+              console.log('🖼️ Extracted images from HTML, count:', images.length);
+            }
             
             // Extract features and amenities
-            const featuresText = $('.features, .amenities, .property-features, [class*="feature"], .highlights, .property-highlights').text().trim();
+            featuresText = $('.features, .amenities, .property-features, [class*="feature"], .highlights, .property-highlights').text().trim();
             console.log('✨ Extracted features text:', featuresText.substring(0, 100) + '...');
-            
-            // Extract images
-            const images: string[] = [];
-            $('img[src*="realtor"], .listing-image img, .property-image img, [class*="image"] img').each((_, img) => {
-              const src = $(img).attr('src');
-              if (src && src.startsWith('http')) {
-                images.push(src);
-              }
-            });
-            console.log('🖼️ Extracted images count:', images.length);
             
             // Parse features into structured format
             const featureKeywords = [
@@ -571,7 +715,7 @@ export const importPropertyFromText = onRequest(
                 userId,
                 source: 'realtor.ca',
                 url: inputText,
-                extractionMethod: 'cheerio'
+                extractionMethod: 'ld+json with fallback'
               }
             });
             return;
