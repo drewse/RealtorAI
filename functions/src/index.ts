@@ -391,23 +391,23 @@ export const importPropertyFromText = onRequest(
           messages: [
             {
               role: 'system',
-              content: `You are a real estate listing parser. Given raw HTML or a listing description, extract the following fields and respond with valid JSON only:
+              content: `You are a real estate property formatter. ONLY respond with a JSON object with this exact structure:
 
 {
-  "address": "full address string",
-  "city": "city name",
-  "province": "province/state name", 
-  "postalCode": "postal/zip code",
+  "address": "string",
+  "city": "string", 
+  "province": "string",
+  "postalCode": "string",
   "price": number,
   "bedrooms": number,
   "bathrooms": number,
   "squareFootage": number,
-  "listingDescription": "property description text",
-  "features": ["array", "of", "feature", "tags"],
-  "imageUrls": ["array", "of", "image", "urls"]
+  "listingDescription": "string",
+  "features": ["string"],
+  "imageUrls": ["string"]
 }
 
-If a field is not found, use null for strings and 0 for numbers. Ensure the response is valid JSON.`,
+Do not return markdown, explanation, or commentary — ONLY raw JSON. If a field is not found, use empty string for strings and 0 for numbers.`,
             },
             {
               role: 'user',
@@ -415,7 +415,7 @@ If a field is not found, use null for strings and 0 for numbers. Ensure the resp
             },
           ],
           max_tokens: 1000,
-          temperature: 0.1,
+          temperature: 0,
         }),
       });
 
@@ -454,7 +454,7 @@ If a field is not found, use null for strings and 0 for numbers. Ensure the resp
         console.error('❌ Raw AI content that failed to parse:', aiContent);
         res.status(500).json({
           success: false,
-          error: 'Data parsing failed',
+          error: 'Failed to parse AI property data. Please try again.',
           message: 'Failed to parse property data from AI response. Please try again.',
         });
         return;
@@ -471,19 +471,77 @@ If a field is not found, use null for strings and 0 for numbers. Ensure the resp
         return;
       }
 
-      // Provide fallback values for missing fields with validation
+      // Validate required fields and types
+      const requiredFields = {
+        address: 'string',
+        city: 'string', 
+        province: 'string',
+        postalCode: 'string',
+        price: 'number',
+        bedrooms: 'number',
+        bathrooms: 'number',
+        squareFootage: 'number',
+        listingDescription: 'string',
+        features: 'array',
+        imageUrls: 'array'
+      };
+
+      for (const [field, expectedType] of Object.entries(requiredFields)) {
+        if (!(field in parsedData)) {
+          console.error(`❌ Missing required field: ${field}`);
+          res.status(500).json({
+            success: false,
+            error: 'Missing required property data',
+            message: `Missing required field: ${field}`,
+          });
+          return;
+        }
+
+        const value = parsedData[field];
+        if (expectedType === 'array' && !Array.isArray(value)) {
+          console.error(`❌ Field ${field} is not an array:`, value);
+          res.status(500).json({
+            success: false,
+            error: 'Invalid data types',
+            message: `Field ${field} must be an array`,
+          });
+          return;
+        }
+
+        if (expectedType === 'number' && typeof value !== 'number') {
+          console.error(`❌ Field ${field} is not a number:`, value);
+          res.status(500).json({
+            success: false,
+            error: 'Invalid data types',
+            message: `Field ${field} must be a number`,
+          });
+          return;
+        }
+
+        if (expectedType === 'string' && typeof value !== 'string') {
+          console.error(`❌ Field ${field} is not a string:`, value);
+          res.status(500).json({
+            success: false,
+            error: 'Invalid data types',
+            message: `Field ${field} must be a string`,
+          });
+          return;
+        }
+      }
+
+      // Create property data object with validated fields
       const propertyData = {
-        address: parsedData.address || 'Address not found',
-        city: parsedData.city || '',
-        province: parsedData.province || parsedData.state || '',
-        postalCode: parsedData.postalCode || '',
-        price: typeof parsedData.price === 'number' ? parsedData.price : 0,
-        bedrooms: typeof parsedData.bedrooms === 'number' ? parsedData.bedrooms : 0,
-        bathrooms: typeof parsedData.bathrooms === 'number' ? parsedData.bathrooms : 0,
-        sqft: typeof parsedData.squareFootage === 'number' ? parsedData.squareFootage : 0,
-        description: parsedData.listingDescription || '',
-        propertyFeatures: Array.isArray(parsedData.features) ? parsedData.features : [],
-        images: Array.isArray(parsedData.imageUrls) ? parsedData.imageUrls : [],
+        address: parsedData.address,
+        city: parsedData.city,
+        province: parsedData.province,
+        postalCode: parsedData.postalCode,
+        price: parsedData.price,
+        bedrooms: parsedData.bedrooms,
+        bathrooms: parsedData.bathrooms,
+        sqft: parsedData.squareFootage,
+        description: parsedData.listingDescription,
+        propertyFeatures: parsedData.features,
+        images: parsedData.imageUrls,
         // Additional fields for PropertyForm compatibility
         propertyType: 'Single Family', // Default, user can change
         status: 'Active', // Default, user can change
@@ -502,6 +560,7 @@ If a field is not found, use null for strings and 0 for numbers. Ensure the resp
         imagesCount: propertyData.images.length
       });
 
+      // Only send success response after all validations pass
       res.status(200).json({
         success: true,
         data: propertyData,
