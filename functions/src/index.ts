@@ -3,6 +3,7 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
+import cors from 'cors';
 
 setGlobalOptions({ region: 'us-central1' });
 admin.initializeApp();
@@ -10,6 +11,14 @@ admin.initializeApp();
 console.log('🚀 Firebase Functions module loaded');
 console.log('🔧 Node.js version:', process.version);
 console.log('🔧 Environment:', process.env.NODE_ENV || 'production');
+
+// Initialize CORS handler for Vercel frontend
+const corsHandler = cors({
+  origin: 'https://realtor-ai-mu.vercel.app',
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+});
 
 // ✅ Load .env only in local emulator
 if (process.env.FUNCTIONS_EMULATOR === 'true') {
@@ -281,33 +290,31 @@ export const importPropertyFromText = onRequest(
     timeoutSeconds: 60,
   },
   async (req, res) => {
-    try {
-      console.log("🔁 Function started");
-      console.log("🌐 Request method: " + req.method);
-      console.log("🧠 Headers: " + JSON.stringify(req.headers));
-      
-      // Health check endpoint for Cloud Run
-      if (req.path === '/health' || req.path === '/') {
-        console.log('🏥 Health check request received');
-        res.status(200).json({
-          status: 'healthy',
-          timestamp: new Date().toISOString(),
-          function: 'importPropertyFromText'
-        });
-        return;
-      }
-      
-      // Handle CORS for Vercel frontend
-      res.set('Access-Control-Allow-Origin', 'https://realtor-ai-mu.vercel.app');
-      res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.set('Access-Control-Allow-Credentials', 'true');
-      
-      if (req.method === 'OPTIONS') {
-        console.log('✅ CORS preflight request handled');
-        res.status(200).send('');
-        return;
-      }
+    // Wrap the entire function in CORS handler
+    return corsHandler(req, res, async () => {
+      try {
+        console.log("🔁 Function started");
+        console.log("🌐 Request method: " + req.method);
+        console.log("🧠 Headers: " + JSON.stringify(req.headers));
+        console.log("🌍 Origin: " + req.headers.origin);
+        
+        // Health check endpoint for Cloud Run
+        if (req.path === '/health' || req.path === '/') {
+          console.log('🏥 Health check request received');
+          res.status(200).json({
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            function: 'importPropertyFromText'
+          });
+          return;
+        }
+        
+        // Handle OPTIONS preflight requests
+        if (req.method === 'OPTIONS') {
+          console.log('✅ CORS preflight request handled');
+          res.status(204).end();
+          return;
+        }
 
       console.log('🔧 Starting main function logic...');
       
@@ -667,6 +674,7 @@ Do not return markdown, explanation, or commentary — ONLY raw JSON. If a field
         timestamp: new Date().toISOString()
       });
     }
+    });
   }
 );
 
