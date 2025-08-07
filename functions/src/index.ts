@@ -290,7 +290,7 @@ export const importPropertyFromText = onRequest(
     timeoutSeconds: 60,
   },
   async (req, res) => {
-    // Wrap the entire function in CORS handler
+        // Wrap the entire function in CORS handler
     return corsHandler(req, res, async () => {
       try {
         console.log("🔁 Function started");
@@ -316,59 +316,75 @@ export const importPropertyFromText = onRequest(
           return;
         }
 
-      console.log('🔧 Starting main function logic...');
+        console.log('🔧 Starting main function logic...');
+        
+        // 📥 Structured logging of incoming request body
+        console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+        
+        // Validate text field exists in request body
+        const { text, content, userId } = req.body;
+        
+        if (!text && !content) {
+          console.warn('⚠️ Missing text input in request body');
+          res.status(400).json({
+            success: false,
+            message: "Missing text input."
+          });
+          return;
+        }
+        
+        // Use text field if available, fallback to content for backward compatibility
+        const inputText = text || content;
+        console.log('📝 Input text length:', inputText?.length);
+        
+        // 🔧 UPDATED: Use Firebase Functions v2 secrets instead of deprecated config()
+        const openaiApiKey = (process.env.OPENAI_KEY || process.env.OPENAI_API_KEY || '').trim();
+        console.log("🔐 OPENAI_KEY partial (cleaned):", JSON.stringify(openaiApiKey?.slice(0, 10)));
+
+        if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
+          console.error('❌ OPENAI_KEY validation failed');
+          res.status(400).json({
+            success: false,
+            error: 'Configuration error',
+            message: 'OpenAI API key is missing or malformed. Please contact support.',
+          });
+          return;
+        }
       
-      // 🔧 UPDATED: Use Firebase Functions v2 secrets instead of deprecated config()
-      const openaiApiKey = (process.env.OPENAI_KEY || process.env.OPENAI_API_KEY || '').trim();
-      console.log("🔐 OPENAI_KEY partial (cleaned):", JSON.stringify(openaiApiKey?.slice(0, 10)));
+              // Validate required fields
+        if (!inputText || typeof inputText !== 'string') {
+          console.error('❌ Invalid text input provided:', { inputText, type: typeof inputText });
+          res.status(400).json({
+            success: false,
+            error: 'Invalid input',
+            message: 'Text input must be a non-empty string',
+          });
+          return;
+        }
 
-      if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
-        console.error('❌ OPENAI_KEY validation failed');
-        res.status(400).json({
-          success: false,
-          error: 'Configuration error',
-          message: 'OpenAI API key is missing or malformed. Please contact support.',
+        if (!userId || typeof userId !== 'string') {
+          console.error('❌ Invalid userId provided:', { userId, type: typeof userId });
+          res.status(400).json({
+            success: false,
+            error: 'Invalid input',
+            message: 'Valid userId is required',
+          });
+          return;
+        }
+
+        console.log('🏠 Property import request:', { 
+          textLength: inputText.length, 
+          userId,
+          isUrl: inputText.startsWith('http')
         });
-        return;
-      }
 
-      const { content, userId } = req.body;
-      console.log('📝 Request body received:', { contentLength: content?.length, userId });
-      
-      // Validate required fields
-      if (!content || typeof content !== 'string') {
-        console.error('❌ Invalid content provided:', { content, type: typeof content });
-        res.status(400).json({
-          success: false,
-          error: 'Invalid input',
-          message: 'Content must be a non-empty string',
-        });
-        return;
-      }
+        let processedContent = inputText;
 
-      if (!userId || typeof userId !== 'string') {
-        console.error('❌ Invalid userId provided:', { userId, type: typeof userId });
-        res.status(400).json({
-          success: false,
-          error: 'Invalid input',
-          message: 'Valid userId is required',
-        });
-        return;
-      }
-
-      console.log('🏠 Property import request:', { 
-        contentLength: content.length, 
-        userId,
-        isUrl: content.startsWith('http')
-      });
-
-      let processedContent = content;
-
-      // Check if content is a URL and fetch HTML
-      if (content.startsWith('http://') || content.startsWith('https://')) {
-        try {
-          console.log('🌐 Starting URL fetch:', content);
-          const response = await fetch(content, {
+              // Check if content is a URL and fetch HTML
+        if (inputText.startsWith('http://') || inputText.startsWith('https://')) {
+                  try {
+            console.log('🌐 Starting URL fetch:', inputText);
+            const response = await fetch(inputText, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
@@ -620,8 +636,11 @@ Do not return markdown, explanation, or commentary — ONLY raw JSON. If a field
         }
       }
 
-      // Create property data object with validated fields
-      console.log('🔧 Creating property data object...');
+      // 🔧 PLACEHOLDER: Property parsing logic should occur here
+      // const propertyData = parsePropertyText(processedContent);
+      console.log('🔧 Property parsing placeholder - using mock data');
+      
+      // Create mock property data for now
       const propertyData = {
         address: parsedData.address,
         city: parsedData.city,
@@ -652,25 +671,25 @@ Do not return markdown, explanation, or commentary — ONLY raw JSON. If a field
         imagesCount: propertyData.images.length
       });
 
-      // Only send success response after all validations pass
+      // ✅ Success response
       console.log('📤 Sending success response...');
       res.status(200).json({
         success: true,
+        message: "Import succeeded.",
         data: propertyData,
         metadata: {
           timestamp: new Date().toISOString(),
           userId,
-          contentLength: content.length,
+          textLength: inputText.length,
           processedContentLength: processedContent.length,
         },
       });
       
     } catch (error) {
-      console.error("❌ Unexpected error in importPropertyFromText:", error);
+      console.error("❌ Error importing property:", error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: 'An unexpected error occurred. Please try again.',
+        message: 'An unexpected error occurred during property import.',
         timestamp: new Date().toISOString()
       });
     }
