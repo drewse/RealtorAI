@@ -445,13 +445,23 @@ Do not return markdown, explanation, or commentary — ONLY raw JSON. If a field
 
       console.log('🔍 Raw AI response:', aiContent);
 
+      // Clean the AI response to remove markdown code blocks
+      const cleanedContent = aiContent
+        .replace(/^```json\s*/i, '')   // Remove opening ```json (case-insensitive)
+        .replace(/^```\s*/i, '')       // Remove any standalone ```
+        .replace(/\s*```$/i, '')       // Remove trailing ```
+        .trim();
+
+      console.log('🧹 Cleaned content:', cleanedContent);
+
       let parsedData;
       try {
-        parsedData = JSON.parse(aiContent);
+        parsedData = JSON.parse(cleanedContent);
         console.log('✅ JSON parsed successfully:', parsedData);
       } catch (parseError) {
         console.error('❌ JSON parse error:', parseError);
         console.error('❌ Raw AI content that failed to parse:', aiContent);
+        console.error('❌ Cleaned content that failed to parse:', cleanedContent);
         res.status(500).json({
           success: false,
           error: 'Failed to parse AI property data. Please try again.',
