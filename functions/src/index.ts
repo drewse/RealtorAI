@@ -392,81 +392,170 @@ export const importPropertyFromText = onRequest(
 
         let processedContent = inputText;
 
-              // Check if content is a URL and fetch HTML
-        if (inputText.startsWith('http://') || inputText.startsWith('https://')) {
-                  try {
+        // Check if content is a URL (specifically Realtor.ca)
+        if (inputText.startsWith('https://www.realtor.ca/')) {
+          console.log('🏠 Detected Realtor.ca URL, fetching and parsing property data...');
+          
+          try {
             console.log('🌐 Starting URL fetch:', inputText);
             const response = await fetch(inputText, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              }
+            });
+            
+            console.log('🌐 URL fetch response status:', response.status, response.statusText);
+            
+            if (!response.ok) {
+              console.error('❌ URL fetch failed:', response.status, response.statusText);
+              res.status(400).json({
+                error: "Failed to fetch property listing. Please check the URL and try again."
+              });
+              return;
             }
-          });
-          
-          console.log('🌐 URL fetch response status:', response.status, response.statusText);
-          
-          if (!response.ok) {
-            console.error('❌ URL fetch failed:', response.status, response.statusText);
+            
+            const rawHtml = await response.text();
+            console.log('✅ HTML fetched successfully, length:', rawHtml.length);
+            
+            // Extract meaningful text content from HTML using cheerio
+            console.log('🧹 Starting HTML parsing with cheerio...');
+            const $ = cheerio.load(rawHtml);
+            
+            // Extract key property information using Realtor.ca specific selectors
+            const extractedContent = [
+              // Title/Address - Realtor.ca specific selectors
+              $('h1, .title, .listing-title, .property-title, [class*="title"], .address-title').text().trim(),
+              
+              // Price - Realtor.ca specific selectors
+              $('.price, .listing-price, .property-price, [class*="price"], .amount, .price-amount, .listing-amount').text().trim(),
+              
+              // Address/Location - Realtor.ca specific selectors
+              $('.address, .location, .property-address, [class*="address"], .street-address, .property-location').text().trim(),
+              
+              // Property details (beds, baths, sqft) - Realtor.ca specific selectors
+              $('.property-details, .listing-details, .details, [class*="details"], .beds, .baths, .sqft, .property-stats, .listing-stats').text().trim(),
+              
+              // Description - Realtor.ca specific selectors
+              $('.description, .listing-description, .property-description, [class*="description"], .summary, .property-summary').text().trim(),
+              
+              // Features/Amenities - Realtor.ca specific selectors
+              $('.features, .amenities, .property-features, [class*="feature"], .highlights, .property-highlights').text().trim(),
+              
+              // Main content area - Realtor.ca specific selectors
+              $('main, .main-content, .content, .listing-content, .property-content, .listing-main').text().trim(),
+              
+              // Fallback to body text if other selectors don't work
+              $('body').text().trim()
+            ].filter(text => text.length > 0);
+            
+            console.log('🔍 Extracted content sections:', extractedContent.length);
+            extractedContent.forEach((content, index) => {
+              console.log(`📝 Section ${index + 1} (${content.length} chars):`, content.substring(0, 100) + '...');
+            });
+            
+            // Combine all extracted content into a single readable string
+            processedContent = extractedContent.join('\n\n');
+            
+            // Clean up the content
+            processedContent = processedContent
+              .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+              .replace(/\n\s*\n/g, '\n')  // Replace multiple newlines with single newline
+              .trim();
+            
+            console.log('🧹 Cleaned content length:', processedContent.length);
+            console.log('📄 Final processed content preview:', processedContent.substring(0, 200) + '...');
+            
+            // Validate that we extracted meaningful content
+            if (processedContent.length < 50) {
+              console.error('❌ Insufficient content extracted from Realtor.ca URL');
+              res.status(400).json({
+                error: "Unable to extract property information from the Realtor.ca listing. Please try a different listing or enter the description manually."
+              });
+              return;
+            }
+            
+          } catch (error) {
+            console.error('❌ Error fetching Realtor.ca URL:', error);
             res.status(400).json({
-              success: false,
-              error: 'URL fetch failed',
-              message: `Failed to fetch URL: ${response.status} ${response.statusText}`,
+              error: "Failed to access the Realtor.ca listing. Please check the URL and try again."
             });
             return;
           }
+        } else if (inputText.startsWith('http://') || inputText.startsWith('https://')) {
+          // Handle other URLs (non-Realtor.ca)
+          console.log('🌐 Detected generic URL, fetching HTML content...');
           
-          const rawHtml = await response.text();
-          console.log('✅ HTML fetched successfully, length:', rawHtml.length);
-          
-          // Extract meaningful text content from HTML using cheerio
-          console.log('🧹 Starting HTML parsing with cheerio...');
-          const $ = cheerio.load(rawHtml);
-          
-          // Extract various content sections
-          const extractedContent = [
-            // Title and main heading
-            $('h1, .title, .listing-title, .property-title').text().trim(),
+          try {
+            console.log('🌐 Starting URL fetch:', inputText);
+            const response = await fetch(inputText, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              }
+            });
             
-            // Price information
-            $('.price, .listing-price, .property-price, [class*="price"]').text().trim(),
+            console.log('🌐 URL fetch response status:', response.status, response.statusText);
             
-            // Address and location
-            $('.address, .location, .property-address, [class*="address"]').text().trim(),
+            if (!response.ok) {
+              console.error('❌ URL fetch failed:', response.status, response.statusText);
+              res.status(400).json({
+                error: "Failed to fetch property listing. Please check the URL and try again."
+              });
+              return;
+            }
             
-            // Property details (bedrooms, bathrooms, etc.)
-            $('.property-details, .listing-details, .details, [class*="details"]').text().trim(),
+            const rawHtml = await response.text();
+            console.log('✅ HTML fetched successfully, length:', rawHtml.length);
             
-            // Description
-            $('.description, .listing-description, .property-description, [class*="description"]').text().trim(),
+            // Extract meaningful text content from HTML using cheerio
+            console.log('🧹 Starting HTML parsing with cheerio...');
+            const $ = cheerio.load(rawHtml);
             
-            // Features and amenities
-            $('.features, .amenities, .property-features, [class*="feature"]').text().trim(),
+            // Extract various content sections for generic URLs
+            const extractedContent = [
+              // Title and main heading
+              $('h1, .title, .listing-title, .property-title').text().trim(),
+              
+              // Price information
+              $('.price, .listing-price, .property-price, [class*="price"]').text().trim(),
+              
+              // Address and location
+              $('.address, .location, .property-address, [class*="address"]').text().trim(),
+              
+              // Property details (bedrooms, bathrooms, etc.)
+              $('.property-details, .listing-details, .details, [class*="details"]').text().trim(),
+              
+              // Description
+              $('.description, .listing-description, .property-description, [class*="description"]').text().trim(),
+              
+              // Features and amenities
+              $('.features, .amenities, .property-features, [class*="feature"]').text().trim(),
+              
+              // General content from main sections
+              $('main, .main-content, .content, .listing-content').text().trim(),
+              
+              // Fallback: extract all text content if specific selectors don't work
+              $('body').text().trim()
+            ].filter(text => text.length > 0).join('\n\n');
             
-            // General content from main sections
-            $('main, .main-content, .content, .listing-content').text().trim(),
+            // Clean up the extracted content
+            processedContent = extractedContent
+              .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+              .replace(/\n\s*\n/g, '\n')  // Remove empty lines
+              .trim();
             
-            // Fallback: extract all text content if specific selectors don't work
-            $('body').text().trim()
-          ].filter(text => text.length > 0).join('\n\n');
-          
-          // Clean up the extracted content
-          processedContent = extractedContent
-            .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
-            .replace(/\n\s*\n/g, '\n')  // Remove empty lines
-            .trim();
-          
-          console.log('🧹 Extracted text content length:', processedContent.length);
-          console.log('📄 Sample extracted content:', processedContent.substring(0, 500) + '...');
-          
-        } catch (error) {
-          console.error('❌ Error fetching URL:', error);
-          res.status(400).json({
-            success: false,
-            error: 'URL fetch error',
-            message: `Failed to fetch URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          });
-          return;
+            console.log('🧹 Extracted text content length:', processedContent.length);
+            console.log('📄 Sample extracted content:', processedContent.substring(0, 500) + '...');
+            
+          } catch (error) {
+            console.error('❌ Error fetching URL:', error);
+            res.status(400).json({
+              error: "Failed to access the property listing. Please check the URL and try again."
+            });
+            return;
+          }
+        } else {
+          console.log('📝 Using provided text content directly');
         }
-      }
 
       // Validate processed content
       if (!processedContent || processedContent.trim().length === 0) {
