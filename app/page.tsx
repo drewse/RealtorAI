@@ -64,7 +64,7 @@ interface Session {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
-  tags: string[];g
+  tags: string[];
   propertyAddress: string;
   propertyId: string;
   transcript: string;
