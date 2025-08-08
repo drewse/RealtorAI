@@ -130,10 +130,52 @@ app.post('/scrape', async (req, res) => {
             : [addrObj?.AddressText || addrObj?.streetAddress, addrObj?.Municipality || addrObj?.addressLocality, addrObj?.Province || addrObj?.addressRegion]
                 .filter(Boolean).join(', ');
 
+          // Parse address into components
+          const parseAddressParts = (address) => {
+            const cleaned = address.replace(/\s+/g, ' ').trim();
+            
+            // Try patterns like: "123 Main St, Windsor, ON N9B 3P4"
+            const caMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*([A-Z]\d[A-Z]\s?\d[A-Z]\d)$/i);
+            if (caMatch) {
+              return {
+                addressLine1: caMatch[1].trim(),
+                city: caMatch[2].trim(),
+                state: caMatch[3].toUpperCase(),
+                postalCode: caMatch[4].toUpperCase().replace(/\s+/g, ' ').trim(),
+              };
+            }
+
+            // US-ish: "123 Main St, Detroit, MI 48226"
+            const usMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)$/i);
+            if (usMatch) {
+              return {
+                addressLine1: usMatch[1].trim(),
+                city: usMatch[2].trim(),
+                state: usMatch[3].toUpperCase(),
+                postalCode: usMatch[4],
+              };
+            }
+
+            // Fallback: split by commas
+            const parts = cleaned.split(',').map(p => p.trim());
+            return {
+              addressLine1: parts[0] || '',
+              city: parts[1] || '',
+              state: parts[2]?.split(' ')[0] || '',
+              postalCode: parts[2]?.split(' ').slice(1).join(' ') || '',
+            };
+          };
+
+          const parsedAddress = parseAddressParts(addrStr);
+
           // Normalize
           const nextCandidate = {
             source: 'next-data',
             address: addrStr || '',
+            addressLine1: parsedAddress.addressLine1,
+            city: parsedAddress.city,
+            state: parsedAddress.state,
+            postalCode: parsedAddress.postalCode,
             price: cleanNum(priceVal),
             bedrooms: cleanNum(bedsVal),
             bathrooms: cleanNum(bathsVal),
@@ -157,7 +199,17 @@ app.post('/scrape', async (req, res) => {
           if (ld?.textContent) {
             const j = JSON.parse(ld.textContent);
             out.source = 'ld+json';
-            out.address = out.address || [j?.address?.streetAddress, j?.address?.addressLocality].filter(Boolean).join(', ');
+            
+            // Build full address and parse components
+            const addrStr = out.address || [j?.address?.streetAddress, j?.address?.addressLocality, j?.address?.addressRegion, j?.address?.postalCode].filter(Boolean).join(', ');
+            out.address = addrStr;
+            
+            // Extract individual components if available
+            out.addressLine1 = out.addressLine1 || j?.address?.streetAddress || '';
+            out.city = out.city || j?.address?.addressLocality || '';
+            out.state = out.state || j?.address?.addressRegion || '';
+            out.postalCode = out.postalCode || j?.address?.postalCode || '';
+            
             out.price   = out.price   || cleanNum(j?.offers?.price ?? j?.price);
             out.bedrooms= out.bedrooms|| cleanNum(j?.numberOfRooms ?? j?.numberOfBedrooms);
             out.bathrooms=out.bathrooms|| cleanNum(j?.numberOfBathroomsTotal ?? j?.numberOfBathrooms);
@@ -175,7 +227,54 @@ app.post('/scrape', async (req, res) => {
       const bedSel   = '[class*="bed"], [data-testid*="bed"], [aria-label*="bed"]';
       const bathSel  = '[class*="bath"], [data-testid*="bath"], [aria-label*="bath"]';
       const descSel  = '.description, [class*="description"], [data-testid*="description"]';
-      if (!out.address) out.address = text('h1, [class*="title"], [data-testid*="address"]');
+      
+      if (!out.address) {
+        out.address = text('h1, [class*="title"], [data-testid*="address"]');
+        // Parse address components if we found an address
+        if (out.address && !out.addressLine1) {
+          const parseAddressParts = (address) => {
+            const cleaned = address.replace(/\s+/g, ' ').trim();
+            
+            // Try patterns like: "123 Main St, Windsor, ON N9B 3P4"
+            const caMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*([A-Z]\d[A-Z]\s?\d[A-Z]\d)$/i);
+            if (caMatch) {
+              return {
+                addressLine1: caMatch[1].trim(),
+                city: caMatch[2].trim(),
+                state: caMatch[3].toUpperCase(),
+                postalCode: caMatch[4].toUpperCase().replace(/\s+/g, ' ').trim(),
+              };
+            }
+
+            // US-ish: "123 Main St, Detroit, MI 48226"
+            const usMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)$/i);
+            if (usMatch) {
+              return {
+                addressLine1: usMatch[1].trim(),
+                city: usMatch[2].trim(),
+                state: usMatch[3].toUpperCase(),
+                postalCode: usMatch[4],
+              };
+            }
+
+            // Fallback: split by commas
+            const parts = cleaned.split(',').map(p => p.trim());
+            return {
+              addressLine1: parts[0] || '',
+              city: parts[1] || '',
+              state: parts[2]?.split(' ')[0] || '',
+              postalCode: parts[2]?.split(' ').slice(1).join(' ') || '',
+            };
+          };
+          
+          const parsedAddress = parseAddressParts(out.address);
+          out.addressLine1 = parsedAddress.addressLine1;
+          out.city = parsedAddress.city;
+          out.state = parsedAddress.state;
+          out.postalCode = parsedAddress.postalCode;
+        }
+      }
+      
       if (!out.price)   out.price   = cleanNum(text(priceSel));
       if (!out.bedrooms) out.bedrooms = cleanNum(text(bedSel));
       if (!out.bathrooms) out.bathrooms = cleanNum(text(bathSel));
