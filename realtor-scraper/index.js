@@ -112,45 +112,107 @@ app.post(['/', '/import', '/importPropertyFromText'], async (req, res) => {
 
     console.log(`🔍 Starting scrape for: ${url}`);
     
-    // Launch browser with Cloud Run optimized settings
+    // Launch browser with Cloud Run optimized settings and fallback logic
+    const launchOptions = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-zygote',
+        '--single-process',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--disable-default-apps',
+        '--disable-extensions',
+        '--disable-plugins',
+        '--disable-sync',
+        '--disable-translate',
+        '--hide-scrollbars',
+        '--mute-audio',
+        '--no-first-run',
+        '--safebrowsing-disable-auto-update',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ],
+      ignoreDefaultArgs: ['--disable-extensions'],
+    };
+
+    // Determine executable path with fallback logic
+    let executablePath;
+    let executableSource;
+    
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      executableSource = 'environment variable';
+    } else {
+      try {
+        executablePath = puppeteer.executablePath();
+        executableSource = 'bundled Chromium';
+      } catch (fallbackError) {
+        console.warn('⚠️ Could not get Puppeteer executable path, using undefined:', fallbackError.message);
+        executablePath = undefined;
+        executableSource = 'system default';
+      }
+    }
+
+    console.log(`🖥️ Using ${executableSource} executable: ${executablePath || 'default'}`);
+
+    // Try to launch with primary executable path
     try {
       browser = await puppeteer.launch({
-        headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-zygote',
-          '--single-process',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection',
-          '--disable-default-apps',
-          '--disable-extensions',
-          '--disable-plugins',
-          '--disable-sync',
-          '--disable-translate',
-          '--hide-scrollbars',
-          '--mute-audio',
-          '--no-first-run',
-          '--safebrowsing-disable-auto-update',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor'
-        ],
-        ignoreDefaultArgs: ['--disable-extensions'],
+        ...launchOptions,
+        executablePath: executablePath
       });
-      console.log('🟩 Puppeteer launched successfully');
-    } catch (e) {
-      console.error('🟥 Launch failed:', e);
-      return res.status(500).json({
-        error: String(e?.message || e),
-        url,
-        timestamp: new Date().toISOString()
-      });
+      console.log(`🟩 Puppeteer launched successfully with ${executableSource}`);
+    } catch (primaryError) {
+      console.warn(`⚠️ Primary launch failed with ${executableSource}:`, primaryError.message);
+      
+      // If we were using environment variable, try fallback to bundled Chromium
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        console.log('🔄 Attempting fallback to bundled Chromium...');
+        try {
+          const fallbackPath = puppeteer.executablePath();
+          console.log(`🖥️ Fallback executable: ${fallbackPath}`);
+          
+          browser = await puppeteer.launch({
+            ...launchOptions,
+            executablePath: fallbackPath
+          });
+          console.log('🟩 Puppeteer launched successfully with fallback bundled Chromium');
+        } catch (fallbackError) {
+          console.warn('⚠️ Fallback to bundled Chromium failed:', fallbackError.message);
+          
+          // Final attempt with no executable path (system default)
+          console.log('🔄 Final attempt with system default...');
+          try {
+            browser = await puppeteer.launch({
+              ...launchOptions,
+              executablePath: undefined
+            });
+            console.log('🟩 Puppeteer launched successfully with system default');
+          } catch (finalError) {
+            console.error('🟥 All launch attempts failed:', finalError.message);
+            return res.status(500).json({
+              error: `Puppeteer launch failed: ${finalError.message}`,
+              url,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      } else {
+        // If we weren't using environment variable, this is the final failure
+        console.error('🟥 Launch failed:', primaryError.message);
+        return res.status(500).json({
+          error: `Puppeteer launch failed: ${primaryError.message}`,
+          url,
+          timestamp: new Date().toISOString()
+        });
+      }
     }
 
     // Create page and configure
