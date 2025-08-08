@@ -299,7 +299,7 @@ export const importPropertyFromText = onRequest(
         console.log("🌍 Origin: " + req.headers.origin);
         
         // Health check endpoint for Cloud Run - only intercept actual health checks
-        if (req.method === 'GET' && (req.path === '/health' || req.path === '/')) {
+        if (req.method === 'GET' && req.path === '/') {
           console.log('🏥 Cloud Run health check request received');
           res.status(200).send("OK");
           return;
@@ -354,29 +354,73 @@ export const importPropertyFromText = onRequest(
           console.log('🏠 Detected Realtor.ca URL, using Cloud Run scraper...');
           
           try {
-            const resp = await fetch("https://realtor-scraper-72019299027.us-central1.run.app/scrape", {
+            const SCRAPER_URL = process.env.SCRAPER_URL || "https://realtor-scraper-72019299027.us-central1.run.app";
+            
+            const resp = await fetch(`${SCRAPER_URL}/`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ url: inputText }),
+              body: JSON.stringify({ url: inputText, userId }),
             });
             
-            const data = await resp.json() as any;
+            const ct = resp.headers.get("content-type") || "";
+            const bodyText = await resp.text();
             
             if (!resp.ok) {
-              console.error('❌ Cloud Run scraper failed:', data);
-              throw new Error(data.error || "Scraping failed");
+              console.error('❌ Cloud Run scraper failed:', { status: resp.status, body: bodyText.slice(0, 500) });
+              throw new Error(`Scraper ${resp.status}: ${bodyText.slice(0, 500)}`);
             }
+            
+            if (!ct.includes("application/json")) {
+              console.error('❌ Non-JSON response from scraper:', { contentType: ct, body: bodyText.slice(0, 500) });
+              throw new Error(`Non-JSON: ${bodyText.slice(0, 500)}`);
+            }
+            
+            const data = JSON.parse(bodyText) as any;
             
             console.log('✅ Cloud Run scraper success:', { success: data.success, partial: data.partial, source: data.source });
             
             // normalize to PropertyData interface
             const toInt = (n: any) => Number.isFinite(Number(n)) ? Number(n) : 0;
+            
+            // Parse address components if missing from scraper response
+            let addressLine1 = data.addressLine1 || "";
+            let city = data.city || "";
+            let state = data.state || "";
+            let postalCode = data.postalCode || "";
+            
+            // If address components are missing, parse from full address
+            if (!addressLine1 || !city || !state || !postalCode) {
+              const parseAddressParts = (addr: string) => {
+                const normalizePostal = (pc: string) => {
+                  return (pc || "").toUpperCase().replace(/\s+/g, "").replace(/^([A-Z]\d[A-Z])(\d[A-Z]\d)$/, "$1 $2");
+                };
+                
+                const fixJoinedStreetCity = (addr: string) => {
+                  return addr.replace(/([a-z])([A-Z][a-z]+)/, "$1, $2");
+                };
+                
+                const a = fixJoinedStreetCity((addr || "").replace(/\s+/g, " ").trim());
+                let m = a.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*([A-Z]\d[A-Z]\s?\d[A-Z]\d)$/i); // CA
+                if (m) return { addressLine1: m[1].trim(), city: m[2].trim(), state: m[3].toUpperCase(), postalCode: normalizePostal(m[4]) };
+                m = a.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)$/); // US
+                if (m) return { addressLine1: m[1].trim(), city: m[2].trim(), state: m[3].toUpperCase(), postalCode: m[4] };
+                const parts = a.split(",").map(s => s.trim());
+                return { addressLine1: parts[0] || "", city: parts[1] || "", state: (parts[2] || "").split(" ")[0].toUpperCase(), postalCode: normalizePostal((parts[2] || "").split(" ").slice(1).join(" ")) };
+              };
+              
+              const parsedAddress = parseAddressParts(data.address || "");
+              addressLine1 = addressLine1 || parsedAddress.addressLine1;
+              city = city || parsedAddress.city;
+              state = state || parsedAddress.state;
+              postalCode = postalCode || parsedAddress.postalCode;
+            }
+            
             const property = {
-              address: data.address || "",
-              addressLine1: data.addressLine1 || data.address || "",
-              city: data.city || "",
-              state: data.state || "",
-              postalCode: data.postalCode || "",
+              address: data.address || [addressLine1, city, state, postalCode].filter(Boolean).join(", "),
+              addressLine1,
+              city,
+              state,
+              postalCode,
               propertyType: data.propertyType || "Single Family",
               status: "Active",
               price: toInt(data.price),
@@ -398,13 +442,28 @@ export const importPropertyFromText = onRequest(
               price: property.price,
               bedrooms: property.bedrooms,
               bathrooms: property.bathrooms,
-              source: data.source
+              source: data.source,
+              partial: data.partial
             });
             
-            // respond exactly like manual create expects
+            // Check if we still have missing critical fields after parsing
+            const missingFields = [];
+            if (!property.address && !(property.addressLine1 && property.city && property.state)) {
+              missingFields.push('address');
+            }
+            if (!property.price) missingFields.push('price');
+            if (!property.bedrooms) missingFields.push('bedrooms');
+            if (!property.bathrooms) missingFields.push('bathrooms');
+            if (!property.description) missingFields.push('description');
+            
+            const isPartial = data.partial || missingFields.length > 0;
+            
+            // Treat non-fatal partial:true as success; map whatever fields exist
+            // Do not fail the import for partial; return warnings to client
             return res.status(200).json({ 
-              success: true, 
-              partial: !!data.partial, 
+              success: true, // Always success, even with partial data
+              partial: isPartial,
+              importWarnings: missingFields.length > 0 ? missingFields : undefined,
               data: property,
               metadata: {
                 timestamp: new Date().toISOString(),
@@ -412,7 +471,8 @@ export const importPropertyFromText = onRequest(
                 source: 'cloud-run-scraper',
                 scraperSource: data.source,
                 url: inputText,
-                extractionMethod: 'puppeteer'
+                extractionMethod: 'puppeteer',
+                missing: data.missing || []
               }
             });
             

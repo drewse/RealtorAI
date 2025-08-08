@@ -6,25 +6,83 @@ const puppeteer = require('puppeteer');
 
 const app = express();
 
+// Utility functions for address parsing and normalization
+function normalizePostal(pc) {
+  return (pc || "").toUpperCase().replace(/\s+/g, "").replace(/^([A-Z]\d[A-Z])(\d[A-Z]\d)$/, "$1 $2");
+}
+
+function fixJoinedStreetCity(addr) {
+  // add comma if street+city are jammed together like "... DRIVEKingsville"
+  return addr.replace(/([a-z])([A-Z][a-z]+)/g, "$1, $2");
+}
+
+function parseAddressParts(addr) {
+  const a = fixJoinedStreetCity((addr || "").replace(/\s+/g, " ").trim());
+  let m = a.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2,})\s*([A-Z]\d[A-Z]\s?\d[A-Z]\d)$/i);
+  if (m) return { addressLine1: m[1].trim(), city: m[2].trim(), state: m[3].toUpperCase(), postalCode: normalizePostal(m[4]) };
+  m = a.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)$/);
+  if (m) return { addressLine1: m[1].trim(), city: m[2].trim(), state: m[3].toUpperCase(), postalCode: m[4] };
+  const parts = a.split(",").map(s => s.trim());
+  return { addressLine1: parts[0] || "", city: parts[1] || "", state: (parts[2] || "").split(" ")[0].toUpperCase(), postalCode: normalizePostal((parts[2] || "").split(" ").slice(1).join(" ")) };
+}
+
+// Tolerant LD+JSON helpers
+function sanitizeLdJson(txt = "") {
+  return txt
+    .replace(/^\uFEFF/, "")                  // BOM
+    .replace(/^\s*<!--/, "")                 // html comment open
+    .replace(/-->\s*$/, "")                  // html comment close
+    .replace(/,\s*([}\]])/g, "$1");          // trailing commas
+}
+
+function safeParseJSON(txt) {
+  try {
+    return JSON.parse(sanitizeLdJson(txt));
+  } catch {
+    return null;
+  }
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-});
+// Centralized response function
+function sendPartial(res, payload = {}) {
+  const { address, addressLine1, city, state, postalCode, price, bedrooms, bathrooms, description } = payload;
+  const missing = [];
+  if (!address && !(addressLine1 && city && state)) missing.push("address");
+  if (price == null) missing.push("price");
+  if (bedrooms == null) missing.push("bedrooms");
+  if (bathrooms == null) missing.push("bathrooms");
+  if (!description) missing.push("description");
+  const body = { success: missing.length === 0, partial: missing.length > 0, missing, ...payload };
+  if (body.partial) console.warn("partial extract", { url: payload.url, missing });
+  return res.status(200).json(body);
+}
 
-// Main scraping endpoint
-app.post('/scrape', async (req, res) => {
-  const { url } = req.body;
-  
-  // Body parsing + validation
-  console.log('🟦 /scrape hit', { hasBody: !!req.body, url: req.body?.url });
-  
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
-  }
+// Health check endpoint
+app.get('/', (req, res) => res.status(200).json({ ok: true }));
+
+// Main scraping endpoint with multiple routes
+app.post(['/', '/import', '/importPropertyFromText'], async (req, res) => {
+  try {
+    const { text, userId } = req.body;
+    
+    // Body parsing + validation
+    console.log('🟦 POST endpoint hit', { hasBody: !!req.body, hasText: !!req.body?.text, hasUserId: !!req.body?.userId });
+    
+    // Extract URL from text field (text contains the URL to scrape)
+    const url = text;
+    
+    if (!url) {
+      return sendPartial(res, {
+        source: "validation-error",
+        error: "text field with URL is required for scraping",
+        url: null,
+        timestamp: new Date().toISOString()
+      });
+    }
 
   console.log(`🔍 Starting scrape for: ${url}`);
   
@@ -33,12 +91,42 @@ app.post('/scrape', async (req, res) => {
   try {
     browser = await puppeteer.launch({
       headless: 'new',
-      args: ['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage','--disable-gpu','--no-zygote','--single-process'],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-zygote',
+        '--single-process',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--disable-default-apps',
+        '--disable-extensions',
+        '--disable-plugins',
+        '--disable-sync',
+        '--disable-translate',
+        '--hide-scrollbars',
+        '--mute-audio',
+        '--no-first-run',
+        '--safebrowsing-disable-auto-update',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ],
+      ignoreDefaultArgs: ['--disable-extensions'],
     });
-    console.log('🟩 Puppeteer launched');
+    console.log('🟩 Puppeteer launched successfully');
   } catch (e) {
     console.error('🟥 Launch failed:', e);
-    return res.status(500).json({ error: 'Browser launch failed', message: String(e.message || e) });
+    return sendPartial(res, {
+      source: "launch-error",
+      error: String(e?.message || e),
+      url,
+      timestamp: new Date().toISOString()
+    });
   }
 
   // Safe navigation with retry
@@ -54,20 +142,48 @@ app.post('/scrape', async (req, res) => {
     }
   }
 
-  const page = await browser.newPage();
-  await page.setDefaultNavigationTimeout(0);
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36');
-  await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
-  await page.setViewport({ width: 1366, height: 900 });
+     const page = await browser.newPage();
+   await page.setDefaultNavigationTimeout(0);
+   
+   // Harden navigation & headers against bot detection
+   const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+   await page.setUserAgent(UA);
+   await page.setExtraHTTPHeaders({
+     "accept-language": "en-CA,en;q=0.9",
+     "sec-ch-ua-platform": "\"Windows\"",
+     "upgrade-insecure-requests": "1",
+     "cache-control": "no-cache"
+   });
+   await page.setViewport({ width: 1366, height: 900, deviceScaleFactor: 1 });
 
-  try {
-    await safeGoto(page, url);
-    console.log('🟩 Navigation ok');
-  } catch (navErr) {
-    console.error('🟥 Navigation failed:', navErr);
-    await browser.close().catch(()=>{});
-    return res.status(500).json({ error: 'Navigation failed', message: String(navErr.message || navErr) });
-  }
+   try {
+     await page.goto(url, { waitUntil: ["networkidle0","domcontentloaded"], timeout: 60000 });
+     console.log('🟩 Navigation ok');
+     
+     // Dismiss consent banners if they appear
+     const consentBtn = await page.$('button:has-text("Accept") , button:has-text("I Agree") , [aria-label*="Accept"]');
+     if (consentBtn) {
+       await consentBtn.click().catch(()=>{});
+       console.log('🟩 Dismissed consent banner');
+     }
+       } catch (navErr) {
+      console.error('🟥 Navigation failed:', navErr);
+      
+      // Ensure cleanup happens even on navigation error
+      try {
+        if (browser) await browser.close();
+        console.log('🟩 Browser resources cleaned up after navigation error');
+      } catch (cleanupErr) {
+        console.warn('⚠️ Cleanup warning after navigation error:', cleanupErr.message);
+      }
+      
+      return sendPartial(res, {
+        source: 'navigation-error',
+        error: String(navErr?.message || navErr),
+        url,
+        timestamp: new Date().toISOString()
+      });
+    }
 
   // wait for Next.js data or visible price fallback
   const sourceReady = await Promise.race([
@@ -76,299 +192,211 @@ app.post('/scrape', async (req, res) => {
   ]).catch(()=>null);
   console.log('🔎 sourceReady:', sourceReady);
 
-  let result = {};
-  try {
-    result = await page.evaluate(() => {
-      const out = {
-        source: 'unknown',
-        address: '',
-        price: 0,
-        bedrooms: 0,
-        bathrooms: 0,
-        description: '',
-        images: [],
-        mlsNumber: ''
-      };
+     // Initialize result object
+   let address = '';
+   let addressLine1 = '';
+   let city = '';
+   let state = '';
+   let postalCode = '';
+   let price = null;
+   let bedrooms = null;
+   let bathrooms = null;
+   let description = '';
+   let images = [];
+   let mlsNumber = '';
+   let source = 'unknown';
 
-      const cleanNum = (s) => {
-        if (!s) return 0;
-        const m = String(s).replace(/[, ]+/g,'').match(/\d+(\.\d+)?/);
-        return m ? Number(m[0]) : 0;
-      };
-      const text = (sel) => (document.querySelector(sel)?.textContent || '').trim();
+   // ---- 1) Tolerant LD+JSON parsing ----
+   try {
+     const ldRaw = await page.$$eval('script[type="application/ld+json"]', ns => ns.map(n => n.textContent || ""));
+     const ldAll = ldRaw.map(safeParseJSON).filter(Boolean).flatMap(v => Array.isArray(v) ? v : [v]);
 
-      // ---- 1) Next.js data: __NEXT_DATA__ ----
-      try {
-        const nextScript = document.querySelector('script#__NEXT_DATA__');
-        if (nextScript?.textContent) {
-          const next = JSON.parse(nextScript.textContent);
-          // Try to locate listing payload heuristically
-          // Common pattern: next.props?.pageProps || next.query || next.state
-          const deepFind = (obj, key) => {
-            const stack = [obj];
-            while (stack.length) {
-              const cur = stack.pop();
-              if (!cur || typeof cur !== 'object') continue;
-              if (key in cur) return cur[key];
-              for (const k in cur) stack.push(cur[k]);
-            }
-            return undefined;
-          };
+     const isType = t => (o) => (o && o['@type'] && [].concat(o['@type']).some(x => [ 'RealEstateListing','Residence','SingleFamilyResidence','Apartment','Product','Offer' ].includes(String(x))));
+     const ldPref = ldAll.find(isType()) || ldAll.find(o => o?.address || o?.offers || o?.price) || null;
 
-          // Heuristic keys we care about
-          const priceVal = deepFind(next, 'Price') ?? deepFind(next, 'price') ?? deepFind(next, 'ListPrice') ?? deepFind(next, 'listPrice');
-          const bedsVal  = deepFind(next, 'Bedrooms') ?? deepFind(next, 'bedrooms');
-          const bathsVal = deepFind(next, 'Bathrooms') ?? deepFind(next, 'bathrooms') ?? deepFind(next, 'bathroomsTotal');
-          const addrObj  = deepFind(next, 'Address') ?? deepFind(next, 'address') ?? {};
-          const descVal  = deepFind(next, 'PublicRemarks') ?? deepFind(next, 'description');
-          const mlsVal   = deepFind(next, 'MLS') ?? deepFind(next, 'mls') ?? deepFind(next, 'MlsNumber') ?? deepFind(next, 'mlsNumber');
-          const imgs     = deepFind(next, 'Photos') ?? deepFind(next, 'photos') ?? deepFind(next, 'Images') ?? deepFind(next, 'images') ?? [];
+     if (ldPref) {
+       source = 'ld+json';
+       const addr = ldPref.address || {};
+       addressLine1 = addressLine1 || addr.streetAddress || "";
+       city = city || addr.addressLocality || "";
+       state = state || (addr.addressRegion || "").toUpperCase();
+       postalCode = postalCode || addr.postalCode || "";
+       price = price ?? (ldPref.offers?.price ?? ldPref.price ?? null);
+       bedrooms = bedrooms ?? (ldPref.numberOfRooms ?? ldPref.bedroomCount ?? ldPref.bedrooms ?? null);
+       bathrooms = bathrooms ?? (ldPref.numberOfBathroomsTotal ?? ldPref.bathrooms ?? null);
+       description = description || ldPref.description || ldPref.name || "";
+       mlsNumber = mlsNumber || ldPref.mlsNumber || ldPref.identifier || "";
+     }
+   } catch (e) {
+     console.warn('LD+JSON parsing failed:', e.message);
+   }
 
-          // Address may be object or string
-          const addrStr = typeof addrObj === 'string'
-            ? addrObj
-            : [addrObj?.AddressText || addrObj?.streetAddress, addrObj?.Municipality || addrObj?.addressLocality, addrObj?.Province || addrObj?.addressRegion]
-                .filter(Boolean).join(', ');
+   // ---- 2) __NEXT_DATA__ fallback ----
+   try {
+     const nextRaw = await page.$eval('#__NEXT_DATA__', n => n.textContent).catch(() => null);
+     const nextJSON = nextRaw ? safeParseJSON(nextRaw) : null;
+     if (nextJSON) {
+       const any = JSON.stringify(nextJSON);
+       // cheap picks
+       const addrMatch = any.match(/"streetAddress":"([^"]+)".*?"addressLocality":"([^"]+)".*?"addressRegion":"([^"]+)".*?"postalCode":"([^"]+)"/s);
+       if (addrMatch) {
+         addressLine1 ||= addrMatch[1];
+         city ||= addrMatch[2];
+         state ||= addrMatch[3].toUpperCase();
+         postalCode ||= addrMatch[4];
+       }
+       const priceMatch = any.match(/"price":\s*("?[\d,\.]+"?)/);
+       if (price == null && priceMatch) price = Number(String(priceMatch[1]).replace(/[",]/g,"")) || null;
+       const mlsMatch = any.match(/"mlsNumber":"?([A-Z0-9\-]+)"?/i) || any.match(/"identifier":"?([A-Z0-9\-]+)"?/i);
+       if (!mlsNumber && mlsMatch) mlsNumber = mlsMatch[1];
+     }
+   } catch (e) {
+     console.warn('Next.js data parsing failed:', e.message);
+   }
 
-          // Parse address into components
-          const parseAddressParts = (address) => {
-            const cleaned = address.replace(/\s+/g, ' ').trim();
-            
-            // Try patterns like: "123 Main St, Windsor, ON N9B 3P4"
-            const caMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*([A-Z]\d[A-Z]\s?\d[A-Z]\d)$/i);
-            if (caMatch) {
-              return {
-                addressLine1: caMatch[1].trim(),
-                city: caMatch[2].trim(),
-                state: caMatch[3].toUpperCase(),
-                postalCode: caMatch[4].toUpperCase().replace(/\s+/g, ' ').trim(),
-              };
-            }
+   // ---- 3) DOM fallback (augment, don't replace) ----
+   try {
+     const dom = await page.evaluate(() => {
+       const grab = sel => (document.querySelector(sel)?.textContent || "").trim();
+       let domAddr = grab('[data-testid="property-address"]') || grab('.listingAddress') || grab('.address');
+       let domPrice = grab('[data-testid="listing-price"]') || grab('.price') || grab('[itemprop="price"]');
+       let domMLS = [...document.querySelectorAll('body *')].map(x => x.textContent || "").join(" ").match(/MLS[:\s#-]*([A-Z0-9-]+)/i);
 
-            // US-ish: "123 Main St, Detroit, MI 48226"
-            const usMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)$/i);
-            if (usMatch) {
-              return {
-                addressLine1: usMatch[1].trim(),
-                city: usMatch[2].trim(),
-                state: usMatch[3].toUpperCase(),
-                postalCode: usMatch[4],
-              };
-            }
+       return { domAddr, domPrice, domMLS: domMLS ? domMLS[1] : "" };
+     });
 
-            // Fallback: split by commas
-            const parts = cleaned.split(',').map(p => p.trim());
-            return {
-              addressLine1: parts[0] || '',
-              city: parts[1] || '',
-              state: parts[2]?.split(' ')[0] || '',
-              postalCode: parts[2]?.split(' ').slice(1).join(' ') || '',
-            };
-          };
+     if (!address && dom.domAddr) address = dom.domAddr;
+     if (price == null && dom.domPrice) price = Number(dom.domPrice.replace(/[^\d.]/g,"")) || null;
+     if (!mlsNumber && dom.domMLS) mlsNumber = dom.domMLS;
+   } catch (e) {
+     console.warn('DOM extraction failed:', e.message);
+   }
 
-          const parsedAddress = parseAddressParts(addrStr);
+   // ---- 4) Parse/normalize address if needed ----
+   if ((!addressLine1 || !city || !state) && address) {
+     const p = parseAddressParts(address);
+     addressLine1 ||= p.addressLine1;
+     city ||= p.city;
+     state ||= p.state;
+     postalCode ||= p.postalCode;
+   }
+   if (!address) {
+     address = [addressLine1, city, state && postalCode ? `${state} ${postalCode}` : state || postalCode].filter(Boolean).join(", ");
+   }
+   state = (state || "").toUpperCase().trim();
+   postalCode = normalizePostal(postalCode);
 
-          // Normalize
-          const nextCandidate = {
-            source: 'next-data',
-            address: addrStr || '',
-            addressLine1: parsedAddress.addressLine1,
-            city: parsedAddress.city,
-            state: parsedAddress.state,
-            postalCode: parsedAddress.postalCode,
-            price: cleanNum(priceVal),
-            bedrooms: cleanNum(bedsVal),
-            bathrooms: cleanNum(bathsVal),
-            description: descVal || '',
-            images: Array.isArray(imgs) ? imgs.map(x => (typeof x === 'string' ? x : (x?.Url || x?.url))).filter(Boolean) : [],
-            mlsNumber: typeof mlsVal === 'string' ? mlsVal : (mlsVal?.value || '')
-          };
+   const result = {
+     source,
+     address,
+     addressLine1,
+     city,
+     state,
+     postalCode,
+     price,
+     bedrooms,
+     bathrooms,
+     description,
+     images,
+     mlsNumber
+   };
+     } catch (e) {
+     console.error('🟥 evaluate error:', e);
+     
+     // Ensure cleanup happens even on evaluate error
+     try {
+       if (page) await page.close();
+       if (browser) await browser.close();
+       console.log('🟩 Browser resources cleaned up after evaluate error');
+     } catch (cleanupErr) {
+       console.warn('⚠️ Cleanup warning after evaluate error:', cleanupErr.message);
+     }
+     
+     return sendPartial(res, {
+       source: 'evaluate-error',
+       error: String(e?.message || e),
+       url,
+       timestamp: new Date().toISOString()
+     });
+   }
 
-          // Accept if we got key fields
-          if (nextCandidate.price || nextCandidate.bedrooms || nextCandidate.bathrooms || nextCandidate.address) {
-            Object.assign(out, nextCandidate);
-            out.source = 'next-data';
-          }
-        }
-      } catch (e) { /* ignore */ }
+   // Add more logging around what source was used
+   console.log('📦 extracted source:', result.source, 'price:', result.price, 'beds:', result.bedrooms, 'baths:', result.bathrooms);
+   console.log('📦 extracted (final):', { source: result.source, price: result.price, beds: result.bedrooms, baths: result.bathrooms });
 
-      // ---- 2) ld+json fallback ----
-      if (out.source === 'unknown') {
-        try {
-          const ld = document.querySelector('script[type="application/ld+json"]');
-          if (ld?.textContent) {
-            const j = JSON.parse(ld.textContent);
-            out.source = 'ld+json';
-            
-            // Build full address and parse components
-            const addrStr = out.address || [j?.address?.streetAddress, j?.address?.addressLocality, j?.address?.addressRegion, j?.address?.postalCode].filter(Boolean).join(', ');
-            out.address = addrStr;
-            
-            // Extract individual components if available
-            out.addressLine1 = out.addressLine1 || j?.address?.streetAddress || '';
-            out.city = out.city || j?.address?.addressLocality || '';
-            out.state = out.state || j?.address?.addressRegion || '';
-            out.postalCode = out.postalCode || j?.address?.postalCode || '';
-            
-            out.price   = out.price   || cleanNum(j?.offers?.price ?? j?.price);
-            out.bedrooms= out.bedrooms|| cleanNum(j?.numberOfRooms ?? j?.numberOfBedrooms);
-            out.bathrooms=out.bathrooms|| cleanNum(j?.numberOfBathroomsTotal ?? j?.numberOfBathrooms);
-            out.description = out.description || (j?.description || '');
-            if (!out.images?.length) {
-              out.images = Array.isArray(j?.image) ? j.image.filter(u => typeof u === 'string') :
-                (typeof j?.image === 'string' ? [j.image] : []);
-            }
-          }
-        } catch (e) { /* ignore */ }
-      }
+   // Ensure response has the input URL
+   const payload = {
+     ...result,
+     url: req.body?.text || page.url() || null,
+     timestamp: new Date().toISOString()
+   };
 
-      // ---- 3) DOM fallback ----
-      const priceSel = '[class*="price"], [data-testid*="price"], [itemprop="price"]';
-      const bedSel   = '[class*="bed"], [data-testid*="bed"], [aria-label*="bed"]';
-      const bathSel  = '[class*="bath"], [data-testid*="bath"], [aria-label*="bath"]';
-      const descSel  = '.description, [class*="description"], [data-testid*="description"]';
-      
-      if (!out.address) {
-        out.address = text('h1, [class*="title"], [data-testid*="address"]');
-        // Parse address components if we found an address
-        if (out.address && !out.addressLine1) {
-          const parseAddressParts = (address) => {
-            const cleaned = address.replace(/\s+/g, ' ').trim();
-            
-            // Try patterns like: "123 Main St, Windsor, ON N9B 3P4"
-            const caMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*([A-Z]\d[A-Z]\s?\d[A-Z]\d)$/i);
-            if (caMatch) {
-              return {
-                addressLine1: caMatch[1].trim(),
-                city: caMatch[2].trim(),
-                state: caMatch[3].toUpperCase(),
-                postalCode: caMatch[4].toUpperCase().replace(/\s+/g, ' ').trim(),
-              };
-            }
+   // Cleanup browser resources
+   try {
+     if (page) await page.close();
+     if (browser) await browser.close();
+     console.log('🟩 Browser resources cleaned up');
+   } catch (cleanupErr) {
+     console.warn('⚠️ Cleanup warning:', cleanupErr.message);
+   }
 
-            // US-ish: "123 Main St, Detroit, MI 48226"
-            const usMatch = cleaned.match(/^(.*?),\s*([^,]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)$/i);
-            if (usMatch) {
-              return {
-                addressLine1: usMatch[1].trim(),
-                city: usMatch[2].trim(),
-                state: usMatch[3].toUpperCase(),
-                postalCode: usMatch[4],
-              };
-            }
-
-            // Fallback: split by commas
-            const parts = cleaned.split(',').map(p => p.trim());
-            return {
-              addressLine1: parts[0] || '',
-              city: parts[1] || '',
-              state: parts[2]?.split(' ')[0] || '',
-              postalCode: parts[2]?.split(' ').slice(1).join(' ') || '',
-            };
-          };
-          
-          const parsedAddress = parseAddressParts(out.address);
-          out.addressLine1 = parsedAddress.addressLine1;
-          out.city = parsedAddress.city;
-          out.state = parsedAddress.state;
-          out.postalCode = parsedAddress.postalCode;
-        }
-      }
-      
-      if (!out.price)   out.price   = cleanNum(text(priceSel));
-      if (!out.bedrooms) out.bedrooms = cleanNum(text(bedSel));
-      if (!out.bathrooms) out.bathrooms = cleanNum(text(bathSel));
-      if (!out.description) out.description = text(descSel);
-      if (!out.images?.length) {
-        out.images = Array.from(document.querySelectorAll('img'))
-          .map(i => i.src).filter(u => u && u.startsWith('http')).slice(0, 12);
-      }
-
-      // ---- 4) Regex + Meta fallbacks ----
-      // helpers
-      const grabMeta = (p, n) => document.querySelector(`meta[property="${p}"]`)?.content
-                                 || document.querySelector(`meta[name="${n}"]`)?.content || '';
-      const fromTitle = () => (document.querySelector('title')?.textContent || '').trim();
-      const wholeText = () => (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
-
-      // collect text sources
-      const metaOG = grabMeta('og:description', 'description');
-      const titleText = fromTitle();
-      const bodyText = wholeText();
-      const pools = [metaOG, titleText, bodyText].filter(Boolean);
-
-      // regex helpers
-      const matchPrice = (s) => {
-        // $899,900 or CAD 899,900 etc.
-        const m = s.match(/(?:\$|CAD)\s?([\d]{1,3}(?:[, ]\d{3})+(?:\.\d{2})?|\d+(?:\.\d{2})?)/i);
-        if (!m) return 0;
-        return Number((m[1] || '').replace(/[,\s]/g, '')) || 0;
-      };
-      const matchBeds = (s) => {
-        // "4 bed", "4 beds", "4 bedrooms"
-        const m = s.match(/(\d+(?:\.\d+)?)\s*(?:bed(?:room)?s?)/i);
-        return m ? Number(m[1]) : 0;
-      };
-      const matchBaths = (s) => {
-        // "3 bath", "3.5 baths", "3 bathrooms"
-        const m = s.match(/(\d+(?:\.\d+)?)\s*(?:bath(?:room)?s?)/i);
-        return m ? Number(m[1]) : 0;
-      };
-
-      // only fill if still missing
-      if (!out.price) {
-        for (const src of pools) {
-          const p = matchPrice(src);
-          if (p) { out.price = p; break; }
-        }
-      }
-      if (!out.bedrooms) {
-        for (const src of pools) {
-          const b = matchBeds(src);
-          if (b) { out.bedrooms = b; break; }
-        }
-      }
-      if (!out.bathrooms) {
-        for (const src of pools) {
-          const b = matchBaths(src);
-          if (b) { out.bathrooms = b; break; }
-        }
-      }
-
-      // final sanity: if address missing, check title/meta too
-      if (!out.address) {
-        const addrGuess = titleText.match(/^\s*(.+?)\s*[-|–]/)?.[1] || '';
-        if (addrGuess) out.address = addrGuess.trim();
-      }
-
-      return out;
+   // Use centralized response function
+   return sendPartial(res, payload);
+  } catch (err) {
+    console.error("scrape error", req.body?.text, err);
+    
+    // Ensure cleanup happens even on error
+    try {
+      if (page) await page.close();
+      if (browser) await browser.close();
+      console.log('🟩 Browser resources cleaned up after error');
+    } catch (cleanupErr) {
+      console.warn('⚠️ Cleanup warning after error:', cleanupErr.message);
+    }
+    
+    return sendPartial(res, {
+      source: "error",
+      error: String(err?.message || err),
+      url: req.body?.text || null,
+      timestamp: new Date().toISOString()
     });
-  } catch (e) {
-    console.error('🟥 evaluate error:', e);
-    await browser.close().catch(()=>{});
-    return res.status(500).json({ error: 'Evaluate failed', message: String(e.message || e) });
   }
+ });
 
-  // Add more logging around what source was used
-  console.log('📦 extracted source:', result.source, 'price:', result.price, 'beds:', result.bedrooms, 'baths:', result.bathrooms);
-  console.log('📦 extracted (final):', { source: result.source, price: result.price, beds: result.bedrooms, baths: result.bathrooms });
-
-  // Validate + return with partial support
-  const missing = ['price','bedrooms','bathrooms'].filter(k => !result[k]);
-  await page.close().catch(()=>{});
-  await browser.close().catch(()=>{});
-  if (missing.length) {
-    console.warn('⚠️ Missing fields:', missing);
-    return res.status(200).json({ success: true, partial: true, missing, ...result, url, timestamp: new Date().toISOString() });
-  }
-  return res.status(200).json({ success: true, partial: false, ...result, url, timestamp: new Date().toISOString() });
+// Express error handler - catch any unhandled errors
+app.use((err, req, res, _next) => {
+  console.error("unhandled", err);
+  return sendPartial(res, {
+    source: "unhandled",
+    error: String(err?.message || err),
+    url: req.body?.text || null,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Use PORT from environment variable for Cloud Run compatibility
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
-  console.log(`🔍 Scraping endpoint available at: http://localhost:${PORT}/scrape`);
-}); 
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('🔄 SIGTERM received, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🔄 SIGINT received, shutting down gracefully...');
+  process.exit(0);
+});
+
+// Start the server
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server listening on port ${PORT}`);
+  console.log(`🌐 Health check available at: http://localhost:${PORT}/`);
+  console.log(`🔍 Scraping endpoints available at: http://localhost:${PORT}/, /import, /importPropertyFromText`);
+});
+
+// Handle server errors
+server.on('error', (err) => {
+  console.error('🟥 Server error:', err);
+  process.exit(1);
+});  
