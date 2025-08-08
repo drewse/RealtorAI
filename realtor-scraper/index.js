@@ -1,8 +1,32 @@
+// Enhanced startup with error handling
 console.log('✅ Starting Realtor Scraper...');
 
-const express = require('express');
-const cors = require('cors');
-const puppeteer = require('puppeteer');
+// Validate required environment variables
+const requiredEnvVars = ['PORT'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars);
+  process.exit(1);
+}
+
+// Validate Puppeteer executable path
+const puppeteerExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+if (!puppeteerExecutablePath) {
+  console.warn('⚠️ PUPPETEER_EXECUTABLE_PATH not set, using default');
+}
+
+let express, cors, puppeteer;
+
+try {
+  express = require('express');
+  cors = require('cors');
+  puppeteer = require('puppeteer');
+  
+  console.log('✅ Dependencies loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load dependencies:', error.message);
+  process.exit(1);
+}
 
 const app = express();
 
@@ -377,6 +401,12 @@ app.use((err, req, res, _next) => {
 // Use PORT from environment variable for Cloud Run compatibility
 const PORT = process.env.PORT || 8080;
 
+// Validate port number
+if (isNaN(PORT) || PORT < 1 || PORT > 65535) {
+  console.error('❌ Invalid PORT number:', PORT);
+  process.exit(1);
+}
+
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
   console.log('🔄 SIGTERM received, shutting down gracefully...');
@@ -388,15 +418,45 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// Start the server
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server listening on port ${PORT}`);
-  console.log(`🌐 Health check available at: http://localhost:${PORT}/`);
-  console.log(`🔍 Scraping endpoints available at: http://localhost:${PORT}/, /import, /importPropertyFromText`);
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('🟥 Uncaught Exception:', err);
+  process.exit(1);
 });
 
-// Handle server errors
-server.on('error', (err) => {
-  console.error('🟥 Server error:', err);
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🟥 Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
-});  
+});
+
+// Start the server with enhanced error handling
+let server;
+try {
+  server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Server listening on port ${PORT}`);
+    console.log(`🌐 Health check available at: http://localhost:${PORT}/`);
+    console.log(`🔍 Scraping endpoints available at: http://localhost:${PORT}/, /import, /importPropertyFromText`);
+    console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🖥️  Puppeteer executable: ${process.env.PUPPETEER_EXECUTABLE_PATH || 'default'}`);
+  });
+
+  // Handle server errors
+  server.on('error', (err) => {
+    console.error('🟥 Server error:', err);
+    if (err.code === 'EADDRINUSE') {
+      console.error('❌ Port', PORT, 'is already in use');
+    } else if (err.code === 'EACCES') {
+      console.error('❌ Permission denied to bind to port', PORT);
+    }
+    process.exit(1);
+  });
+
+  // Handle server close
+  server.on('close', () => {
+    console.log('🔄 Server closed');
+  });
+
+} catch (error) {
+  console.error('❌ Failed to start server:', error.message);
+  process.exit(1);
+}  

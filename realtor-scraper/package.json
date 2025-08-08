@@ -1,22 +1,23 @@
 {
   "name": "realtor-scraper",
   "version": "1.0.0",
-  "description": "",
+  "description": "Cloud Run service for scraping Realtor.ca property listings",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "test": "node test-local.js",
-    "test-local": "node test-local.js"
+    "test-local": "node test-local.js",
+    "health": "node -e \"require('http').get('http://localhost:' + (process.env.PORT || 8080) + '/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\"",
+    "verify": "node verify-deployment.js",
+    "verify-deployment": "node verify-deployment.js"
   },
-  "keywords": [],
+  "keywords": ["realtor", "scraper", "cloud-run", "puppeteer"],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "puppeteer": "^24.16.0"
-  },
-  "devDependencies": {
+    "puppeteer": "^24.16.0",
     "node-fetch": "^2.6.7"
   }
 }
