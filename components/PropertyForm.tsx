@@ -10,6 +10,10 @@ import TagInput from './TagInput';
 interface PropertyFormProps {
   onSubmit: (data: {
     address: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    postalCode: string;
     price: number;
     bedrooms: number;
     bathrooms: number;
@@ -30,6 +34,10 @@ interface PropertyFormProps {
   isEditing?: boolean;
   initialData?: {
     address: string;
+    addressLine1?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
     price: number;
     bedrooms: number;
     bathrooms: number;
@@ -80,6 +88,10 @@ const PROPERTY_FEATURES = [
 export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = false, initialData }: PropertyFormProps) {
   const [formData, setFormData] = useState({
     address: initialData?.address || '',
+    addressLine1: initialData?.addressLine1 || '',
+    city: initialData?.city || '',
+    state: initialData?.state || '',
+    postalCode: initialData?.postalCode || '',
     price: initialData?.price?.toString() || '',
     bedrooms: initialData?.bedrooms?.toString() || '3',
     bathrooms: initialData?.bathrooms?.toString() || '2',
@@ -116,14 +128,20 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
     console.log('Image files:', imageFiles.length);
     
     // Validate required fields
-    const isAddressValid = formData.address.trim().length > 0;
+    const isAddressLine1Valid = formData.addressLine1.trim().length > 0;
+    const isCityValid = formData.city.trim().length > 0;
+    const isStateValid = formData.state.trim().length > 0;
+    const isPostalCodeValid = formData.postalCode.trim().length > 0;
     const isPriceValid = formData.price && !isNaN(parseInt(formData.price));
     const isSqftValid = formData.sqft && !isNaN(parseInt(formData.sqft));
     const isPropertyTypeValid = formData.propertyType.length > 0;
     const isStatusValid = formData.status.length > 0;
     
     console.log('Enhanced form validation:', {
-      address: { value: formData.address, isValid: isAddressValid },
+      addressLine1: { value: formData.addressLine1, isValid: isAddressLine1Valid },
+      city: { value: formData.city, isValid: isCityValid },
+      state: { value: formData.state, isValid: isStateValid },
+      postalCode: { value: formData.postalCode, isValid: isPostalCodeValid },
       price: { value: formData.price, isValid: isPriceValid },
       sqft: { value: formData.sqft, isValid: isSqftValid },
       propertyType: { value: formData.propertyType, isValid: isPropertyTypeValid },
@@ -132,7 +150,7 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
       bathrooms: { value: formData.bathrooms, parsed: parseFloat(formData.bathrooms) }
     });
     
-    if (!isAddressValid || !isPriceValid || !isSqftValid || !isPropertyTypeValid || !isStatusValid) {
+    if (!isAddressLine1Valid || !isCityValid || !isStateValid || !isPostalCodeValid || !isPriceValid || !isSqftValid || !isPropertyTypeValid || !isStatusValid) {
       alert('Please fill in all required fields with valid values.');
       return;
     }
@@ -161,7 +179,11 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
 
       // Process enhanced data
       const processedData = {
-        address: formData.address.trim(),
+        address: `${formData.addressLine1.trim()}, ${formData.city.trim()}, ${formData.state.trim()} ${formData.postalCode.trim()}`,
+        addressLine1: formData.addressLine1.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim().toUpperCase(),
+        postalCode: formData.postalCode.trim(),
         price: parseInt(formData.price),
         bedrooms: parseInt(formData.bedrooms),
         bathrooms: parseFloat(formData.bathrooms),
@@ -252,26 +274,78 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
   const currentYear = new Date().getFullYear();
 
   return (
-    <div className="max-h-[80vh] overflow-y-auto">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="flex flex-col h-full">
+      <form onSubmit={handleSubmit} className="flex flex-col h-full">
+        {/* Scrollable form content */}
+        <div className="mobile-scroll overflow-y-auto flex-1 px-4 pb-24 safe-bottom">
+          <div className="space-y-4">
         {/* Basic Information Section */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Basic Information</h3>
           
+          {/* Address Fields */}
           <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2">
-              Property Address *
+            <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-300 mb-2">
+              Street Address *
             </label>
             <input
               type="text"
-              id="address"
-              name="address"
-              value={formData.address}
+              id="addressLine1"
+              name="addressLine1"
+              value={formData.addressLine1}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-700 rounded-lg bg-gray-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              placeholder="123 Main St, City, State 12345"
+              placeholder="123 Main Street"
               required
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="flex flex-col">
+              <label htmlFor="city" className="text-sm font-medium text-gray-300 mb-2">
+                City *
+              </label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-700 rounded-lg bg-gray-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Windsor"
+                required
+              />
+            </div>
+            <div className="flex flex-col">
+              <label htmlFor="state" className="text-sm font-medium text-gray-300 mb-2">
+                State / Province *
+              </label>
+              <input
+                type="text"
+                id="state"
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-700 rounded-lg bg-gray-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="ON"
+                required
+              />
+            </div>
+            <div className="flex flex-col">
+              <label htmlFor="postalCode" className="text-sm font-medium text-gray-300 mb-2">
+                Postal Code *
+              </label>
+              <input
+                type="text"
+                id="postalCode"
+                name="postalCode"
+                value={formData.postalCode}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-700 rounded-lg bg-gray-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="N9B 3P4"
+                required
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -565,22 +639,28 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
           </div>
         </div>
 
-        <div className="flex space-x-3 pt-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading || uploadingImages || !formData.address.trim() || !formData.price || !formData.sqft}
-            className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-          >
-            {uploadingImages ? 'Uploading Images...' : loading ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add Property')}
-          </button>
+          </div>
         </div>
+
+        {/* Sticky footer with action buttons */}
+        <footer className="sticky bottom-0 left-0 right-0 safe-bottom bg-gray-800/90 backdrop-blur border-t border-gray-700 px-4 py-3">
+          <div className="flex space-x-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || uploadingImages || !formData.address.trim() || !formData.price || !formData.sqft}
+              className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+            >
+              {uploadingImages ? 'Uploading Images...' : loading ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add Property')}
+            </button>
+          </div>
+        </footer>
       </form>
     </div>
   );

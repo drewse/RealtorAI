@@ -349,6 +349,80 @@ export const importPropertyFromText = onRequest(
         const inputText = text || content;
         console.log('📝 Input text length:', inputText?.length);
         
+        // Check if this is a Realtor.ca URL - use Cloud Run scraper
+        if (/^https?:\/\/www\.realtor\.ca\//i.test(inputText)) {
+          console.log('🏠 Detected Realtor.ca URL, using Cloud Run scraper...');
+          
+          try {
+            const resp = await fetch("https://realtor-scraper-72019299027.us-central1.run.app/scrape", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: inputText }),
+            });
+            
+            const data = await resp.json() as any;
+            
+            if (!resp.ok) {
+              console.error('❌ Cloud Run scraper failed:', data);
+              throw new Error(data.error || "Scraping failed");
+            }
+            
+            console.log('✅ Cloud Run scraper success:', { success: data.success, partial: data.partial, source: data.source });
+            
+            // normalize to PropertyData interface
+            const toInt = (n: any) => Number.isFinite(Number(n)) ? Number(n) : 0;
+            const property = {
+              address: data.address || "",
+              addressLine1: data.addressLine1 || data.address || "",
+              city: data.city || "",
+              state: data.state || "",
+              postalCode: data.postalCode || "",
+              propertyType: data.propertyType || "Single Family",
+              status: "Active",
+              price: toInt(data.price),
+              squareFeet: toInt(data.squareFeet),
+              bedrooms: toInt(data.bedrooms),
+              bathrooms: toInt(data.bathrooms),
+              lotSizeSqFt: toInt(data.lotSizeSqFt),
+              yearBuilt: data.yearBuilt ? toInt(data.yearBuilt) : undefined,
+              parking: data.parking || "",
+              mlsNumber: data.mlsNumber || "",
+              features: data.features || {},
+              customFeatures: data.customFeatures || "",
+              images: Array.isArray(data.images) ? data.images : [],
+              description: data.description || "",
+            };
+            
+            console.log('🏗️ Mapped property data:', {
+              address: property.address,
+              price: property.price,
+              bedrooms: property.bedrooms,
+              bathrooms: property.bathrooms,
+              source: data.source
+            });
+            
+            // respond exactly like manual create expects
+            return res.status(200).json({ 
+              success: true, 
+              partial: !!data.partial, 
+              data: property,
+              metadata: {
+                timestamp: new Date().toISOString(),
+                userId,
+                source: 'cloud-run-scraper',
+                scraperSource: data.source,
+                url: inputText,
+                extractionMethod: 'puppeteer'
+              }
+            });
+            
+          } catch (cloudRunError) {
+            console.error('❌ Cloud Run scraper error:', cloudRunError);
+            // Fall through to text-based processing as fallback
+            console.log('🔄 Falling back to text-based processing...');
+          }
+        }
+        
         // 🔧 UPDATED: Use Firebase Functions v2 secrets instead of deprecated config()
         const openaiApiKey = (process.env.OPENAI_KEY || process.env.OPENAI_API_KEY || '').trim();
         console.log("🔐 OPENAI_KEY partial (cleaned):", JSON.stringify(openaiApiKey?.slice(0, 10)));
@@ -1031,16 +1105,19 @@ Do not return markdown, explanation, or commentary — ONLY raw JSON. If a field
           processedContentLength: processedContent.length,
         },
       });
+      return;
       
     } catch (error) {
-      console.error("❌ Error importing property:", error);
-      res.status(500).json({
-        success: false,
-        message: 'An unexpected error occurred during property import.',
-        timestamp: new Date().toISOString()
+              console.error("❌ Error importing property:", error);
+        res.status(500).json({
+          success: false,
+          message: 'An unexpected error occurred during property import.',
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
       });
-    }
-    });
+      return;
   }
 );
 

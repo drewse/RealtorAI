@@ -2,3 +2,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* iOS-friendly scrolling inside modals */
+.mobile-scroll {
+  max-height: 100dvh;           /* respect dynamic viewport on mobile */
+  -webkit-overflow-scrolling: touch;
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}

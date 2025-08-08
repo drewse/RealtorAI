@@ -18,6 +18,10 @@ import { v4 as uuidv4 } from 'uuid';
 interface Property {
   id: string;
   address: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
   price: number;
   bedrooms: number;
   bathrooms: number;
@@ -250,6 +254,10 @@ export default function PropertiesPage() {
       // Enhanced property document with all new fields and history
       const propertyToSave = {
         address: propertyData.address.trim(),
+        addressLine1: propertyData.addressLine1?.trim() || '',
+        city: propertyData.city?.trim() || '',
+        state: propertyData.state?.trim().toUpperCase() || '',
+        postalCode: propertyData.postalCode?.trim() || '',
         price: Number(propertyData.price),
         bedrooms: Number(propertyData.bedrooms),
         bathrooms: Number(propertyData.bathrooms),
@@ -358,6 +366,10 @@ export default function PropertiesPage() {
       // Prepare update data
       const updateData: any = {
         address: propertyData.address.trim(),
+        addressLine1: propertyData.addressLine1?.trim() || '',
+        city: propertyData.city?.trim() || '',
+        state: propertyData.state?.trim().toUpperCase() || '',
+        postalCode: propertyData.postalCode?.trim() || '',
         price: Number(propertyData.price),
         bedrooms: Number(propertyData.bedrooms),
         bathrooms: Number(propertyData.bathrooms),
@@ -589,6 +601,31 @@ export default function PropertiesPage() {
             {!isEditingProperty && (
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <div className="space-y-3">
+                  {/* Address Details */}
+                  {selectedProperty.addressLine1 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Street Address</span>
+                      <span className="text-white font-medium">{selectedProperty.addressLine1}</span>
+                    </div>
+                  )}
+                  {selectedProperty.city && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">City</span>
+                      <span className="text-white">{selectedProperty.city}</span>
+                    </div>
+                  )}
+                  {selectedProperty.state && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">State/Province</span>
+                      <span className="text-white">{selectedProperty.state}</span>
+                    </div>
+                  )}
+                  {selectedProperty.postalCode && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Postal Code</span>
+                      <span className="text-white">{selectedProperty.postalCode}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Status</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${ 
@@ -820,9 +857,10 @@ export default function PropertiesPage() {
           )}
 
           {showAddForm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-              <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="w-full max-w-2xl h-[100dvh] max-h-[100dvh] bg-gray-800 rounded-none sm:rounded-xl shadow-xl flex flex-col">
+                {/* Header */}
+                <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-white">Add New Property</h2>
                   <button
                     onClick={() => {
@@ -836,17 +874,21 @@ export default function PropertiesPage() {
                       <i className="ri-close-line text-xl"></i>
                     </div>
                   </button>
+                </header>
+
+                {/* Scrollable body */}
+                <div className="flex-1">
+                  <PropertyForm
+                    onSubmit={handleAddProperty}
+                    onCancel={() => {
+                      setShowAddForm(false);
+                      setErrorMessage(''); 
+                      setSuccessMessage(''); 
+                      setImportedPropertyData(null);
+                    }}
+                    initialData={importedPropertyData}
+                  />
                 </div>
-                <PropertyForm
-                  onSubmit={handleAddProperty}
-                  onCancel={() => {
-                    setShowAddForm(false);
-                    setErrorMessage(''); 
-                    setSuccessMessage(''); 
-                    setImportedPropertyData(null);
-                  }}
-                  initialData={importedPropertyData}
-                />
               </div>
             </div>
           )}

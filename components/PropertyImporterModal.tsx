@@ -5,6 +5,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface PropertyData {
   address: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
   propertyType: string;
   status: string;
   price: number;
@@ -132,30 +136,33 @@ export default function PropertyImporterModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold text-white">AI Property Importer</h2>
-              <p className="text-gray-400 text-sm mt-1">
-                Import property details from listing URLs or descriptions
-              </p>
-            </div>
-            <button
-              onClick={handleClose}
-              disabled={loading}
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <div className="w-6 h-6 flex items-center justify-center">
-                <i className="ri-close-line text-xl"></i>
-              </div>
-            </button>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="w-full max-w-2xl h-[100dvh] max-h-[100dvh] bg-gray-900 rounded-none sm:rounded-xl shadow-xl flex flex-col">
+        {/* Header */}
+        <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-white">AI Property Importer</h2>
+            <p className="text-gray-400 text-sm mt-1">
+              Import property details from listing URLs or descriptions
+            </p>
           </div>
+          <button
+            onClick={handleClose}
+            disabled={loading}
+            className="text-gray-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <div className="w-6 h-6 flex items-center justify-center">
+              <i className="ri-close-line text-xl"></i>
+            </div>
+          </button>
+        </header>
 
-          {/* Content */}
-          <div className="space-y-4">
+        {/* Scrollable content */}
+        <div className="flex-1">
+          <div className="mobile-scroll overflow-y-auto flex-1 px-4 pb-24 safe-bottom">
+            <div className="space-y-4 py-4">
+              {/* Content */}
+              <div className="space-y-4">
             {/* Input Field */}
             <div>
               <label htmlFor="content" className="block text-sm font-medium text-gray-300 mb-2">
@@ -215,8 +222,13 @@ export default function PropertyImporterModal({
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex space-x-3 pt-4">
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky footer with action buttons */}
+          <footer className="sticky bottom-0 left-0 right-0 safe-bottom bg-gray-900/90 backdrop-blur border-t border-gray-700 px-4 py-3">
+            <div className="flex space-x-3">
               <button
                 onClick={handleClose}
                 disabled={loading}
@@ -244,7 +256,7 @@ export default function PropertyImporterModal({
                 )}
               </button>
             </div>
-          </div>
+          </footer>
         </div>
       </div>
     </div>

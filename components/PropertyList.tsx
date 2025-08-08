@@ -4,6 +4,10 @@
 interface Property {
   id: string;
   address: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
   price: number;
   bedrooms: number;
   bathrooms: number;
