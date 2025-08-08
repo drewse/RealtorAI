@@ -136,10 +136,10 @@ export default function PropertyImporterModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="w-full max-w-2xl h-[100dvh] max-h-[100dvh] bg-gray-900 rounded-none sm:rounded-xl shadow-xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-3xl h-[100svh] max-h-[100svh] flex flex-col bg-neutral-900 rounded-xl">
         {/* Header */}
-        <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+        <header className="sticky top-0 z-10 border-b bg-neutral-900 px-4 py-3 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-white">AI Property Importer</h2>
             <p className="text-gray-400 text-sm mt-1">
@@ -157,12 +157,9 @@ export default function PropertyImporterModal({
           </button>
         </header>
 
-        {/* Scrollable content */}
-        <div className="flex-1">
-          <div className="mobile-scroll overflow-y-auto flex-1 px-4 pb-24 safe-bottom">
-            <div className="space-y-4 py-4">
-              {/* Content */}
-              <div className="space-y-4">
+        {/* Body - the ONLY scroll area */}
+        <div className="flex-1 overflow-y-auto px-4 pb-24 mobile-scroll scroll-contain">
+          <div className="space-y-4 py-4">
             {/* Input Field */}
             <div>
               <label htmlFor="content" className="block text-sm font-medium text-gray-300 mb-2">
@@ -221,43 +218,40 @@ export default function PropertyImporterModal({
                 </div>
               </div>
             )}
-
-              </div>
-            </div>
           </div>
-
-          {/* Sticky footer with action buttons */}
-          <footer className="sticky bottom-0 left-0 right-0 safe-bottom bg-gray-900/90 backdrop-blur border-t border-gray-700 px-4 py-3">
-            <div className="flex space-x-3">
-              <button
-                onClick={handleClose}
-                disabled={loading}
-                className="flex-1 px-4 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleImport}
-                disabled={loading || !content.trim() || !hasPermission}
-                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Importing...</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-4 h-4 flex items-center justify-center">
-                      <i className="ri-download-line"></i>
-                    </div>
-                    <span>Import</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </footer>
         </div>
+
+        {/* Footer */}
+        <footer className="sticky bottom-0 z-10 border-t bg-neutral-900 safe-bottom px-4 py-3">
+          <div className="flex space-x-3">
+            <button
+              onClick={handleClose}
+              disabled={loading}
+              className="flex-1 px-4 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={loading || !content.trim() || !hasPermission}
+              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Importing...</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-download-line"></i>
+                  </div>
+                  <span>Import</span>
+                </>
+              )}
+            </button>
+          </div>
+        </footer>
       </div>
     </div>
   );

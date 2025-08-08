@@ -857,10 +857,10 @@ export default function PropertiesPage() {
           )}
 
           {showAddForm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="w-full max-w-2xl h-[100dvh] max-h-[100dvh] bg-gray-800 rounded-none sm:rounded-xl shadow-xl flex flex-col">
-                {/* Sticky Header */}
-                <header className="sticky top-0 z-10 px-4 py-3 border-b border-gray-700 flex items-center justify-between bg-gray-800">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="w-full max-w-3xl h-[100svh] max-h-[100svh] flex flex-col bg-neutral-900 rounded-xl">
+                {/* Header */}
+                <header className="sticky top-0 z-10 border-b bg-neutral-900 px-4 py-3 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-white">Add New Property</h2>
                   <button
                     onClick={() => {
@@ -876,8 +876,8 @@ export default function PropertiesPage() {
                   </button>
                 </header>
 
-                {/* Scrollable body */}
-                <div className="flex-1 mobile-scroll px-4 pb-24">
+                {/* Body - the ONLY scroll area */}
+                <div className="flex-1 overflow-y-auto px-4 pb-24 mobile-scroll scroll-contain">
                   <PropertyForm
                     onSubmit={handleAddProperty}
                     onCancel={() => {
@@ -890,8 +890,8 @@ export default function PropertiesPage() {
                   />
                 </div>
 
-                {/* Sticky Footer */}
-                <footer className="sticky bottom-0 safe-bottom z-10 bg-gray-800/90 backdrop-blur border-t border-gray-700 px-4 py-3">
+                {/* Footer */}
+                <footer className="sticky bottom-0 z-10 border-t bg-neutral-900 safe-bottom px-4 py-3">
                   <div className="flex space-x-3">
                     <button
                       onClick={() => {
