@@ -859,8 +859,8 @@ export default function PropertiesPage() {
           {showAddForm && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="w-full max-w-2xl h-[100dvh] max-h-[100dvh] bg-gray-800 rounded-none sm:rounded-xl shadow-xl flex flex-col">
-                {/* Header */}
-                <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                {/* Sticky Header */}
+                <header className="sticky top-0 z-10 px-4 py-3 border-b border-gray-700 flex items-center justify-between bg-gray-800">
                   <h2 className="text-lg font-semibold text-white">Add New Property</h2>
                   <button
                     onClick={() => {
@@ -877,7 +877,7 @@ export default function PropertiesPage() {
                 </header>
 
                 {/* Scrollable body */}
-                <div className="flex-1">
+                <div className="flex-1 mobile-scroll px-4 pb-24">
                   <PropertyForm
                     onSubmit={handleAddProperty}
                     onCancel={() => {
@@ -889,6 +889,30 @@ export default function PropertiesPage() {
                     initialData={importedPropertyData}
                   />
                 </div>
+
+                {/* Sticky Footer */}
+                <footer className="sticky bottom-0 safe-bottom z-10 bg-gray-800/90 backdrop-blur border-t border-gray-700 px-4 py-3">
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setErrorMessage(''); 
+                        setSuccessMessage(''); 
+                        setImportedPropertyData(null);
+                      }}
+                      className="flex-1 px-4 py-3 border border-gray-700 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      form="property-form"
+                      className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors cursor-pointer"
+                    >
+                      Add Property
+                    </button>
+                  </div>
+                </footer>
               </div>
             </div>
           )}

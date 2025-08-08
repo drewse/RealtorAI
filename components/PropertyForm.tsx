@@ -274,11 +274,7 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
   const currentYear = new Date().getFullYear();
 
   return (
-    <div className="flex flex-col h-full">
-      <form onSubmit={handleSubmit} className="flex flex-col h-full">
-        {/* Scrollable form content */}
-        <div className="mobile-scroll overflow-y-auto flex-1 px-4 pb-24 safe-bottom">
-          <div className="space-y-4">
+    <form id="property-form" onSubmit={handleSubmit} className="space-y-4">
         {/* Basic Information Section */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Basic Information</h3>
@@ -639,29 +635,6 @@ export default function PropertyForm({ onSubmit, onCancel, loading, isEditing = 
           </div>
         </div>
 
-          </div>
-        </div>
-
-        {/* Sticky footer with action buttons */}
-        <footer className="sticky bottom-0 left-0 right-0 safe-bottom bg-gray-800/90 backdrop-blur border-t border-gray-700 px-4 py-3">
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || uploadingImages || !formData.address.trim() || !formData.price || !formData.sqft}
-              className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-            >
-              {uploadingImages ? 'Uploading Images...' : loading ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add Property')}
-            </button>
-          </div>
-        </footer>
-      </form>
-    </div>
-  );
-}
+        </form>
+      );
+    }
