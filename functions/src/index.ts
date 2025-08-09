@@ -279,17 +279,9 @@ export const generateBuyerPersona = onRequest(
   }
 );
 
-const ALLOWED_ORIGINS = new Set([
-  'https://realtor-ai-mu.vercel.app',
-  'http://localhost:3000',
-]);
-
-function setCors(res: any, origin?: string) {
-  const allow = origin && ALLOWED_ORIGINS.has(origin) ? origin : '';
-  if (allow) {
-    res.setHeader('Access-Control-Allow-Origin', allow);
-    res.setHeader('Vary', 'Origin');
-  }
+function setCors(res: any) {
+  // TEMP: wide-open CORS so the browser never blocks during debugging
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
@@ -382,14 +374,9 @@ async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries:
 }
 
 export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res): Promise<void> => {
-  const origin = req.get('Origin') || undefined;
-
-  // Always set CORS headers first
-  setCors(res, origin);
-
-  // Preflight
+  setCors(res);
   if (req.method === 'OPTIONS') {
-    res.status(204).send(''); // no body
+    res.status(204).send('');
     return;
   }
 
