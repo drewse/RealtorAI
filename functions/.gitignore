@@ -8,3 +8,6 @@ typings/
 # Node.js dependency directory
 node_modules/
 *.local
+
+# Firebase local environment params
+functions/.env.showai-23713

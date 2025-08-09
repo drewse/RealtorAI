@@ -65,9 +65,7 @@ export default function PropertyImporterModal({
     setSuccess(false);
 
     try {
-      const functionUrl = process.env.NEXT_PUBLIC_IS_DEV === 'true' 
-        ? 'http://127.0.0.1:5001/showai-23713/us-central1/importPropertyFromText'
-        : 'https://importpropertyfromtext-x5dsxztz7q-uc.a.run.app';
+      const functionUrl = process.env.NEXT_PUBLIC_IMPORT_ENDPOINT!;
 
       // Prepare request body with text field
       const requestBody = {
