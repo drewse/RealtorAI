@@ -368,15 +368,14 @@ async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries:
 }
 
 export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res) => {
-  // --- BEGIN HARD CORS ---
-  res.setHeader('Access-Control-Allow-Origin', '*');              // TEMP: open for debug
+  // --- HARD CORS (TEMP) ---
+  res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP: open wide so the browser cannot block
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
-  // Debug headers to confirm this version is serving
+  res.setHeader('Access-Control-Expose-Headers', 'X-Debug-Cors,X-Received-Origin');
   res.setHeader('X-Debug-Cors', '1');
   res.setHeader('X-Received-Origin', req.get('Origin') || '');
-  // Preflight fast-path
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
     return;
@@ -384,12 +383,22 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
   // --- END HARD CORS ---
 
   try {
-    if (req.method !== 'POST') {
-      res.status(405).json({ error: 'Method Not Allowed' });
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    if (req.query?.corsTest === '1' || body?.corsTest === true) {
+      res.status(200).json({
+        ok: true,
+        msg: 'CORS ok',
+        origin: req.get('Origin') || null,
+        note: 'Temporary probe bypasses scraper',
+          });
           return;
         }
       
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method Not Allowed' });
+      return;
+    }
+
     const { text, userId, city, state } = body;
     if (!text || typeof text !== 'string') {
       res.status(400).json({ error: 'Missing or invalid "text"' });
