@@ -509,7 +509,7 @@ async function makeScraperRequestWithTimeout(cloudRunUrl: string, payload: any, 
 
 // Helper function for worker that handles 202 polling
 async function makeScraperRequestWithPolling(cloudRunUrl: string, payload: any, jobId: string): Promise<{ data: any; status: number }> {
-  const maxPollingRetries = 5;
+  const maxPollingRetries = 30;
   const pollingIntervalMs = 2000; // 2 seconds
   
   logger.info('Making initial scraper request', { jobId, url: cloudRunUrl });
