@@ -367,7 +367,7 @@ async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries:
   throw lastError || new Error('All scraper request attempts failed');
 }
 
-export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res): Promise<void> => {
+export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res) => {
   // --- BEGIN HARD CORS ---
   res.setHeader('Access-Control-Allow-Origin', '*');              // TEMP: open for debug
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -386,15 +386,15 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
   try {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method Not Allowed' });
-      return;
-    }
-
+          return;
+        }
+      
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
     const { text, userId, city, state } = body;
     if (!text || typeof text !== 'string') {
       res.status(400).json({ error: 'Missing or invalid "text"' });
-      return;
-    }
+          return;
+        }
 
     // Define SCRAPER_URL inside handler to avoid module-load issues
     const SCRAPER_URL = defineString('SCRAPER_URL');
@@ -402,8 +402,8 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     if (!cloudRunUrl) {
       logger.error('SCRAPER_URL not set');
       res.status(500).json({ error: 'Server not configured (SCRAPER_URL missing)' });
-      return;
-    }
+          return;
+        }
 
     // Log SCRAPER_URL once per cold start
     if (!global.scraperUrlLogged) {
@@ -419,9 +419,9 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     if (cached && now - cached.timestamp < CACHE_DURATION) {
       logger.info('Returning cached result', { url: text });
       res.status(200).json(cached.data);
-      return;
-    }
-
+              return;
+            }
+            
     // Single-flight deduplication
     const existingRequest = inFlightRequests.get(cacheKey);
     if (existingRequest) {
@@ -446,10 +446,10 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
         error: 'Rate limited',
         message: `Please wait ${waitTime} seconds before making another request`,
         retryAfterSeconds: waitTime
-      });
-      return;
-    }
-    
+              });
+              return;
+            }
+            
     ipLastRequest.set(clientIP, now);
 
     // Create new request with single-flight deduplication
@@ -504,12 +504,12 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
         res.status(429).json(result);
         return;
       }
-      
+
       res.status(200).json(result);
-      return;
+          return;
     } catch (err: any) {
       logger.error('Scraper request failed', { url: text, error: err?.message });
-      res.status(500).json({ 
+          res.status(500).json({
         error: 'Scraper request failed', 
         message: err?.message || 'Unknown error'
       });
@@ -518,13 +518,13 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
       // Always clean up in-flight request
       inFlightRequests.delete(cacheKey);
     }
-
+      
   } catch (err: any) {
     logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
-    res.status(500).json({ 
+        res.status(500).json({
       error: 'Internal server error', 
       message: err?.message || 'Unknown error'
-    });
-    return;
-  }
-});
+        });
+        return;
+      }
+      });

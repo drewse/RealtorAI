@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { getImportEndpoint } from '@/lib/importEndpoint';
+
+// Module-level single-flight deduplication
+const inFlightRequests = new Map<string, Promise<any>>();
 
 interface PropertyData {
   address: string;
@@ -42,8 +45,22 @@ export default function PropertyImporterModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   
   const { user } = useAuth();
+
+  // Countdown effect for rate limiting
+  React.useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (rateLimited && countdown === 0) {
+      setRateLimited(false);
+    }
+  }, [countdown, rateLimited]);
 
   const handleImport = async () => {
     if (!content.trim()) {
@@ -61,11 +78,50 @@ export default function PropertyImporterModal({
       return;
     }
 
+    const urlKey = content.trim().toLowerCase();
+
+    // Client-side single-flight deduplication
+    const existingRequest = inFlightRequests.get(urlKey);
+    if (existingRequest) {
+      console.log('📋 Awaiting existing request for same URL');
+      setLoading(true);
+      setError('');
+      setSuccess(false);
+      setRateLimited(false);
+
+      try {
+        const result = await existingRequest;
+        console.log('✅ Got result from existing request:', result);
+        
+        if (result.success) {
+          setSuccess(true);
+          console.log('🎉 Property import successful!');
+          onImportSuccess(result.data);
+          setTimeout(() => {
+            onClose();
+            setContent('');
+            setHasPermission(false);
+            setSuccess(false);
+          }, 1500);
+        } else {
+          throw new Error(result.message || 'Import failed');
+        }
+      } catch (error) {
+        console.error('❌ Existing request failed:', error);
+        setError(error instanceof Error ? error.message : 'Failed to import property');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess(false);
+    setRateLimited(false);
 
-    try {
+    // Create new request with single-flight deduplication
+    const requestPromise = (async () => {
       const functionUrl = getImportEndpoint(); // ALWAYS the Firebase Function URL on Vercel
 
       // Prepare request body with text field
@@ -90,27 +146,54 @@ export default function PropertyImporterModal({
       console.log('📥 Response status:', response.status);
       console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
 
-      if (!response.ok) {
-        // Avoid "Unexpected end of JSON input" on non-JSON error bodies
-        const ct = response.headers.get('content-type') || '';
-        let details: any = null;
-        if (ct.includes('application/json')) {
-          try { details = await response.json(); } catch {}
-        } else {
-          try { details = await response.text(); } catch {}
+      // Parse response
+      let responseData: any = null;
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        try { 
+          responseData = await response.json(); 
+        } catch (e) {
+          console.warn('Failed to parse JSON response:', e);
         }
-        throw new Error(`HTTP ${response.status}${details ? `: ${typeof details === 'string' ? details : JSON.stringify(details)}` : ''}`);
+      }
+      
+      if (!responseData) {
+        try { 
+          responseData = await response.text(); 
+        } catch (e) {
+          responseData = `HTTP ${response.status}`;
+        }
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        // Handle rate limiting specifically
+        if (response.status === 429) {
+          const retryAfterSeconds = responseData?.retryAfterSeconds || 60;
+          const errorObj = new Error(`Rate limited. Please wait ${retryAfterSeconds} seconds before trying again.`) as any;
+          errorObj.isRateLimit = true;
+          errorObj.retryAfterSeconds = retryAfterSeconds;
+          throw errorObj;
+        }
+
+        // Handle other errors
+        const errorMessage = responseData?.error || responseData?.message || responseData || `HTTP ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      return responseData;
+    })();
+
+    // Store the in-flight request
+    inFlightRequests.set(urlKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
       console.log('✅ Success response:', result);
       
       if (result.success) {
         setSuccess(true);
         console.log('🎉 Property import successful!');
-        // Pass the parsed data to the parent component
         onImportSuccess(result.data);
-        // Close modal after a brief delay to show success state
         setTimeout(() => {
           onClose();
           setContent('');
@@ -120,11 +203,21 @@ export default function PropertyImporterModal({
       } else {
         throw new Error(result.message || 'Import failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Property import error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to import property');
+      
+      // Handle rate limiting specifically
+      if (error.isRateLimit) {
+        setRateLimited(true);
+        setCountdown(error.retryAfterSeconds);
+        setError(error.message);
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to import property');
+      }
     } finally {
       setLoading(false);
+      // Always clean up in-flight request
+      inFlightRequests.delete(urlKey);
     }
   };
 
@@ -238,13 +331,20 @@ export default function PropertyImporterModal({
             </button>
             <button
               onClick={handleImport}
-              disabled={loading || !content.trim() || !hasPermission}
+              disabled={loading || !content.trim() || !hasPermission || rateLimited}
               className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Importing...</span>
+                </>
+              ) : rateLimited ? (
+                <>
+                  <div className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-timer-line"></i>
+                  </div>
+                  <span>Try again in {countdown}s</span>
                 </>
               ) : (
                 <>
