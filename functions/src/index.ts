@@ -4,7 +4,9 @@ import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
 import * as functions from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import { config } from 'firebase-functions';
+import { defineString } from 'firebase-functions/params';
+
+const SCRAPER_URL = defineString('SCRAPER_URL'); // set via functions:secrets:set
 
 setGlobalOptions({ region: 'us-central1' });
 admin.initializeApp();
@@ -318,15 +320,11 @@ export const importPropertyFromText = functions.onRequest(
         return;
       }
 
-      // Note: config() is deprecated in v2, but still available for compatibility
-      // In production, set the config with: firebase functions:config:set scraper.url="..."
-      const cloudRunUrl =
-        (config()?.scraper?.url as string | undefined) ||
-        process.env.SCRAPER_URL;
-
+      // Prefer secret; fallback to env for local/dev
+      const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
       if (!cloudRunUrl) {
-        logger.error('Missing scraper URL: set functions.config().scraper.url or SCRAPER_URL');
-        res.status(500).json({ error: 'Server not configured (scraper URL missing)' });
+        logger.error('Missing scraper URL: set SCRAPER_URL via functions:secrets:set or env variable');
+        res.status(500).json({ error: 'Server not configured (SCRAPER_URL missing)' });
         return;
       }
 
