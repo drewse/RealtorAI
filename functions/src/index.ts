@@ -425,9 +425,9 @@ export const runImportWorker = onMessagePublished({
       throw new Error('SCRAPER_URL not configured');
     }
 
-    // Call scraper with generous timeout (120s)
+    // Call scraper with polling for 202 responses
     const payload = { text: url, userId };
-    const { data, status } = await makeScraperRequestWithTimeout(cloudRunUrl, payload, 120000);
+    const { data, status } = await makeScraperRequestWithPolling(cloudRunUrl, payload, id);
 
     if (status === 200) {
       // Success
@@ -505,4 +505,66 @@ async function makeScraperRequestWithTimeout(cloudRunUrl: string, payload: any, 
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Helper function for worker that handles 202 polling
+async function makeScraperRequestWithPolling(cloudRunUrl: string, payload: any, jobId: string): Promise<{ data: any; status: number }> {
+  const maxPollingRetries = 5;
+  const pollingIntervalMs = 2000; // 2 seconds
+  
+  logger.info('Making initial scraper request', { jobId, url: cloudRunUrl });
+  
+  // Make initial request
+  let { data, status } = await makeScraperRequestWithTimeout(cloudRunUrl, payload, 120000);
+  
+  // Handle immediate success or error responses
+  if (status !== 202) {
+    logger.info('Scraper returned non-202 status immediately', { jobId, status });
+    return { data, status };
+  }
+  
+  // Handle 202 - scraper is processing asynchronously, need to poll
+  logger.info('Scraper returned 202, starting polling', { jobId, maxRetries: maxPollingRetries });
+  
+  let pollAttempt = 0;
+  while (pollAttempt < maxPollingRetries) {
+    pollAttempt++;
+    
+    logger.info('Polling scraper for completion', { jobId, attempt: pollAttempt, maxRetries: maxPollingRetries });
+    
+    // Wait before polling
+    await new Promise(resolve => setTimeout(resolve, pollingIntervalMs));
+    
+    try {
+      // Poll the scraper for completion
+      const pollResult = await makeScraperRequestWithTimeout(cloudRunUrl, payload, 30000); // Shorter timeout for polls
+      
+      if (pollResult.status === 200) {
+        logger.info('Scraper polling successful', { jobId, attempt: pollAttempt });
+        return { data: pollResult.data, status: 200 };
+      } else if (pollResult.status === 202) {
+        logger.info('Scraper still processing', { jobId, attempt: pollAttempt });
+        // Continue polling
+      } else {
+        // Non-200, non-202 response during polling
+        logger.warn('Scraper polling returned error status', { jobId, attempt: pollAttempt, status: pollResult.status });
+        return { data: pollResult.data, status: pollResult.status };
+      }
+    } catch (error: any) {
+      logger.warn('Scraper polling attempt failed', { jobId, attempt: pollAttempt, error: error?.message });
+      
+      // If this is the last attempt, throw the error
+      if (pollAttempt >= maxPollingRetries) {
+        throw error;
+      }
+      // Otherwise continue to next poll attempt
+    }
+  }
+  
+  // If we reach here, polling timed out
+  logger.error('Scraper polling timed out after all retries', { jobId, attempts: pollAttempt });
+  return {
+    data: { error: 'Scraper timed out after polling', message: 'The scraper is taking too long to complete. Please try again.' },
+    status: 504
+  };
 }
