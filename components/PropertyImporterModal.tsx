@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getImportEndpoint } from '@/lib/importEndpoint';
+import { importProperty, ImportJobStatus } from '@/lib/importJobs';
 
 interface PropertyData {
   address: string;
@@ -39,11 +39,10 @@ export default function PropertyImporterModal({
 }: PropertyImporterModalProps) {
   const [content, setContent] = useState('');
   const [hasPermission, setHasPermission] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [jobStatus, setJobStatus] = useState<'idle' | 'queued' | 'working' | 'success' | 'error'>('idle');
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<'idle' | 'queued' | 'working'>('idle');
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [countdown, setCountdown] = useState(0);
   
@@ -61,58 +60,6 @@ export default function PropertyImporterModal({
     }
   }, [countdown, retryAfterSeconds]);
 
-  // Job status polling
-  React.useEffect(() => {
-    if (!jobId || jobStatus === 'success' || jobStatus === 'error') {
-      return;
-    }
-
-    const pollJobStatus = async () => {
-      try {
-        const functionUrl = getImportEndpoint();
-        const response = await fetch(`${functionUrl}?id=${jobId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setJobStatus(data.status);
-
-          if (data.status === 'success' && data.result) {
-            setSuccess(true);
-            setLoading(false);
-            console.log('🎉 Property import successful!');
-            onImportSuccess(data.result.data || data.result);
-            setTimeout(() => {
-              onClose();
-              setContent('');
-              setHasPermission(false);
-              setSuccess(false);
-              setJobStatus('idle');
-              setJobId(null);
-            }, 1500);
-          } else if (data.status === 'error') {
-            setLoading(false);
-            setError(data.error || 'Import failed');
-            if (data.retryAfterSeconds) {
-              setRetryAfterSeconds(data.retryAfterSeconds);
-              setCountdown(data.retryAfterSeconds);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed to poll job status:', err);
-      }
-    };
-
-    // Poll every 2 seconds while job is active
-    const interval = setInterval(pollJobStatus, 2000);
-    return () => clearInterval(interval);
-  }, [jobId, jobStatus, onImportSuccess, onClose]);
-
   const handleImport = async () => {
     if (!content.trim()) {
       setError('Please enter a listing link or description');
@@ -129,65 +76,76 @@ export default function PropertyImporterModal({
       return;
     }
 
-    setLoading(true);
+    setImporting(true);
     setError('');
     setSuccess(false);
     setJobStatus('idle');
-    setJobId(null);
     setRetryAfterSeconds(null);
 
     try {
-      const functionUrl = getImportEndpoint(); // ALWAYS the Firebase Function URL on Vercel
+      const result = await importProperty(
+        content.trim(),
+        user.uid,
+        (status: ImportJobStatus) => {
+          // Update UI based on job status
+          if (status.status === 'queued') {
+            setJobStatus('queued');
+          } else if (status.status === 'working') {
+            setJobStatus('working');
+          }
+        }
+      );
 
-      // Prepare request body with text field
-      const requestBody = {
-        text: content.trim(),
-        userId: user.uid,
-      };
-
-      console.log('📤 Creating import job:', functionUrl);
-      console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
-
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      console.log('📥 Job creation response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        const errorMessage = errorData?.error || errorData?.message || `HTTP ${response.status}`;
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-      console.log('✅ Job created:', result);
-      
-      if (result.jobId) {
-        setJobId(result.jobId);
-        setJobStatus('queued');
-        // Keep loading true - will be set false when job completes or errors
-      } else {
-        throw new Error('No job ID returned');
+      if (result.status === 'success') {
+        setSuccess(true);
+        console.log('🎉 Property import successful!');
+        onImportSuccess(result.result?.data || result.result);
+        
+        setTimeout(() => {
+          onClose();
+          setContent('');
+          setHasPermission(false);
+          setSuccess(false);
+          setJobStatus('idle');
+        }, 1500);
+      } else if (result.status === 'error') {
+        if (result.retryAfterSeconds) {
+          setRetryAfterSeconds(result.retryAfterSeconds);
+          setCountdown(result.retryAfterSeconds);
+          setError(`Rate limited. Try again in ${result.retryAfterSeconds} seconds.`);
+        } else if (result.error?.includes('UPSTREAM_TIMEOUT')) {
+          setError('Scraper took too long. Please try again.');
+        } else {
+          setError(result.error || 'Import failed');
+        }
       }
     } catch (error: any) {
-      console.error('❌ Failed to create import job:', error);
-      setError(error instanceof Error ? error.message : 'Failed to start import');
-      setLoading(false);
+      console.error('❌ Property import error:', error);
+      
+      // Handle specific error cases
+      if (error.message?.includes('429')) {
+        setError('Rate limited. Please try again later.');
+      } else if (error.message?.includes('timeout')) {
+        setError('Import job timed out. Please try again.');
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to import property');
+      }
+    } finally {
+      setImporting(false);
+      setJobStatus('idle');
     }
   };
 
   const handleClose = () => {
-    if (!loading) {
+    if (!importing) {
       onClose();
       setContent('');
       setHasPermission(false);
       setError('');
       setSuccess(false);
+      setJobStatus('idle');
+      setRetryAfterSeconds(null);
+      setCountdown(0);
     }
   };
 
@@ -206,7 +164,7 @@ export default function PropertyImporterModal({
           </div>
           <button
             onClick={handleClose}
-            disabled={loading}
+            disabled={importing}
             className="text-gray-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
           >
             <div className="w-6 h-6 flex items-center justify-center">
@@ -230,7 +188,7 @@ export default function PropertyImporterModal({
                 placeholder="https://example.com/property-listing OR paste a property description..."
                 rows={6}
                 className="w-full px-4 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
-                disabled={loading}
+                disabled={importing}
               />
             </div>
 
@@ -242,7 +200,7 @@ export default function PropertyImporterModal({
                   id="permission"
                   checked={hasPermission}
                   onChange={(e) => setHasPermission(e.target.checked)}
-                  disabled={loading}
+                  disabled={importing}
                   className="mt-1 w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                 />
                 <label htmlFor="permission" className="text-sm text-yellow-200">
@@ -284,14 +242,14 @@ export default function PropertyImporterModal({
           <div className="flex space-x-3">
             <button
               onClick={handleClose}
-              disabled={loading}
+              disabled={importing}
               className="flex-1 px-4 py-3 border border-gray-700 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={handleImport}
-              disabled={loading || !content.trim() || !hasPermission || retryAfterSeconds !== null}
+              disabled={importing || !content.trim() || !hasPermission || retryAfterSeconds !== null}
               className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
             >
               {jobStatus === 'queued' ? (
@@ -304,7 +262,7 @@ export default function PropertyImporterModal({
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Importing...</span>
                 </>
-              ) : loading ? (
+              ) : importing ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Starting...</span>
@@ -321,7 +279,7 @@ export default function PropertyImporterModal({
                   <div className="w-4 h-4 flex items-center justify-center">
                     <i className="ri-download-line"></i>
                   </div>
-                  <span>Import</span>
+                  <span>Import Property</span>
                 </>
               )}
             </button>

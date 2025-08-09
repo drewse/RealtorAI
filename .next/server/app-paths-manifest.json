@@ -1,10 +1,10 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/admin/page": "app/admin/page.js",
-  "/page": "app/page.js",
   "/clients/page": "app/clients/page.js",
-  "/properties/page": "app/properties/page.js",
+  "/page": "app/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/settings/page": "app/settings/page.js",
-  "/qa-tools/page": "app/qa-tools/page.js"
+  "/properties/page": "app/properties/page.js",
+  "/qa-tools/page": "app/qa-tools/page.js",
+  "/settings/page": "app/settings/page.js"
 }
