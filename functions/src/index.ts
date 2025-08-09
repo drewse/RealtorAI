@@ -6,6 +6,7 @@ import fetch from 'node-fetch';
 import * as logger from 'firebase-functions/logger';
 import { defineString } from 'firebase-functions/params';
 import { PubSub } from '@google-cloud/pubsub';
+import crypto from 'crypto';
 
 // Global type extension for cold start logging
 declare global {
@@ -20,6 +21,14 @@ admin.initializeApp();
 console.log('🚀 Firebase Functions module loaded');
 console.log('🔧 Node.js version:', process.version);
 console.log('🔧 Environment:', process.env.NODE_ENV || 'production');
+
+// Utility functions for idempotent job creation
+function createStableId(s: string): string {
+  return crypto.createHash('sha1').update(s).digest('hex');
+}
+
+// Module-level single-flight publish guard
+const publishingKeys = new Set<string>();
 
 
 
@@ -358,38 +367,107 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     const queueAt = Date.now();
     logger.info('job.create.request', { userId, url: text, queueAt });
 
-    // Create import job document
-    const docRef = admin.firestore().collection('imports').doc();
-    const jobData = {
-      url: text,
-      userId: userId || null,
-      status: 'queued',
-      queueAt,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-    
-    await docRef.set(jobData, { merge: true });
-    logger.info('job.create.saved', { id: docRef.id, userId, url: text });
+    // Compute stable job ID based on user + URL
+    const jobKey = `${userId}:${text.trim().toLowerCase()}`;
+    const jobId = createStableId(jobKey);
+    const docRef = admin.firestore().collection('imports').doc(jobId);
 
-    // Publish to Pub/Sub for background processing
-    const pubsubMessage = {
-      id: docRef.id,
-      url: text,
-      userId: userId || null
-    };
+    // One-active-job-per-user check (soft limit, 2 minutes)
+    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+    const activeJobsQuery = await admin.firestore()
+      .collection('imports')
+      .where('userId', '==', userId)
+      .where('status', 'in', ['queued', 'working'])
+      .where('queueAt', '>', twoMinutesAgo)
+      .limit(5)
+      .get();
 
-    const pubsub = new PubSub();
-    const topic = pubsub.topic('import-jobs');
-    await topic.publishMessage({
-      json: pubsubMessage
+    for (const activeJob of activeJobsQuery.docs) {
+      const data = activeJob.data();
+      if (data.url === text) {
+        // Same URL, return existing job
+        logger.info('job.create.idempotent_hit', { jobId: activeJob.id, userId, url: text });
+        res.status(202).json({
+          jobId: activeJob.id,
+          status: data.status
+        });
+        return;
+      } else {
+        // Different URL, reject
+        logger.warn('job.create.too_many_active', { userId, activeJobId: activeJob.id, activeUrl: data.url, newUrl: text });
+        res.status(429).json({
+          error: 'TOO_MANY_ACTIVE_JOBS',
+          message: 'Finish current import before starting another.'
+        });
+        return;
+      }
+    }
+
+    // Idempotent job creation with transaction
+    const result = await admin.firestore().runTransaction(async (transaction) => {
+      const doc = await transaction.get(docRef);
+      
+      if (doc.exists) {
+        const data = doc.data()!;
+        const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+        
+        // If job is active, don't republish
+        if (['queued', 'working'].includes(data.status)) {
+          logger.info('job.create.idempotent_hit', { jobId, userId, url: text, status: data.status });
+          return { jobId, status: data.status, shouldPublish: false };
+        }
+        
+        // If job completed recently, don't republish
+        if (['success', 'error'].includes(data.status) && data.updatedAt && data.updatedAt.toMillis() > tenMinutesAgo) {
+          logger.info('job.create.idempotent_hit', { jobId, userId, url: text, status: data.status });
+          return { jobId, status: data.status, shouldPublish: false };
+        }
+      }
+      
+      // Create/overwrite job
+      const jobData = {
+        url: text,
+        userId: userId || null,
+        status: 'queued',
+        queueAt,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      transaction.set(docRef, jobData);
+      logger.info('job.create.new', { jobId, userId, url: text });
+      return { jobId, status: 'queued', shouldPublish: true };
     });
-    logger.info('job.publish.ok', { id: docRef.id });
+
+    // Single-flight publish guard
+    if (result.shouldPublish) {
+      if (publishingKeys.has(jobKey)) {
+        logger.info('job.publish.skip_inflight', { jobId, jobKey });
+      } else {
+        publishingKeys.add(jobKey);
+        try {
+          const pubsubMessage = {
+            id: jobId,
+            url: text,
+            userId: userId || null
+          };
+
+          const pubsub = new PubSub();
+          const topic = pubsub.topic('import-jobs');
+          await topic.publishMessage({
+            json: pubsubMessage
+          });
+          logger.info('job.publish.ok', { jobId });
+        } finally {
+          publishingKeys.delete(jobKey);
+        }
+      }
+    }
 
     // Return job ID immediately (202 Accepted)
     res.status(202).json({
-      jobId: docRef.id,
-      status: 'queued'
+      jobId: result.jobId,
+      status: result.status
     });
     return;
 
