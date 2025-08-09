@@ -308,11 +308,24 @@ async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries:
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const upstream = await fetch(cloudRunUrl, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 30_000);
+      let upstream: any;
+      try {
+        upstream = await fetch(cloudRunUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (e: any) {
+        if (e?.name === 'AbortError') {
+          throw new Error('UPSTREAM_TIMEOUT');
+        }
+        throw e;
+      } finally {
+        clearTimeout(t);
+      }
 
       const ct = upstream.headers.get('content-type') || '';
       const data = ct.includes('application/json') ? await upstream.json() : await upstream.text();
@@ -367,7 +380,7 @@ async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries:
   throw lastError || new Error('All scraper request attempts failed');
 }
 
-export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res) => {
+export const importPropertyFromText = onRequest({ region: 'us-central1', timeoutSeconds: 180, memory: '512MiB' }, async (req, res) => {
   // --- HARD CORS (TEMP) ---
   res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP: open wide so the browser cannot block
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -517,8 +530,17 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
       res.status(200).json(result);
           return;
     } catch (err: any) {
+      if (err?.message === 'UPSTREAM_TIMEOUT') {
+        logger.warn('Upstream timeout', { url: text });
+        res.status(504).json({
+          error: 'UPSTREAM_TIMEOUT',
+          message: 'Scraper took too long. Please try again.'
+        });
+        return;
+      }
+      
       logger.error('Scraper request failed', { url: text, error: err?.message });
-          res.status(500).json({
+      res.status(500).json({
         error: 'Scraper request failed', 
         message: err?.message || 'Unknown error'
       });
