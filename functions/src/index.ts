@@ -290,17 +290,30 @@ function setCors(res: any, origin?: string) {
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
+// Simple in-memory cache and rate limiting
+const urlCache = new Map<string, { data: any; timestamp: number }>();
+const ipLastRequest = new Map<string, number>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const IP_DELAY = 2000; // 2 seconds between requests per IP
+
+function getClientIP(req: any): string {
+  return req.get('x-forwarded-for')?.split(',')[0] || 
+         req.get('x-real-ip') || 
+         req.connection?.remoteAddress || 
+         'unknown';
+}
+
 export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res): Promise<void> => {
   const origin = req.get('Origin') || undefined;
 
+  // Always set CORS headers first
+  setCors(res, origin);
+
   // Preflight
   if (req.method === 'OPTIONS') {
-    setCors(res, origin);
     res.status(204).send(''); // no body
     return;
   }
-
-  setCors(res, origin); // ensure CORS on all subsequent responses
 
   try {
     if (req.method !== 'POST') {
@@ -312,6 +325,32 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     const { text, userId, city, state } = body;
     if (!text || typeof text !== 'string') {
       res.status(400).json({ error: 'Missing or invalid "text"' });
+      return;
+    }
+
+    // Rate limiting by IP
+    const clientIP = getClientIP(req);
+    const now = Date.now();
+    const lastRequest = ipLastRequest.get(clientIP);
+    
+    if (lastRequest && now - lastRequest < IP_DELAY) {
+      const waitTime = Math.ceil((IP_DELAY - (now - lastRequest)) / 1000);
+      res.status(429).json({ 
+        error: 'Rate limited',
+        message: `Please wait ${waitTime} seconds before making another request`,
+        retryAfterSeconds: waitTime
+      });
+      return;
+    }
+    
+    ipLastRequest.set(clientIP, now);
+
+    // Check cache
+    const cacheKey = text.trim().toLowerCase();
+    const cached = urlCache.get(cacheKey);
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      logger.info('Returning cached result', { url: text });
+      res.status(200).json(cached.data);
       return;
     }
 
@@ -336,17 +375,53 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     const data = ct.includes('application/json') ? await upstream.json() : await upstream.text();
 
     if (!upstream.ok) {
-      logger.error('Scraper error', { status: upstream.status, data });
-      res.status(upstream.status).json({ error: 'Scraper error', details: data });
+      logger.error('Scraper returned error', { status: upstream.status, url: text });
+      
+      // Handle rate limiting from upstream
+      if (upstream.status === 429) {
+        const retryAfter = upstream.headers.get('retry-after');
+        const retryAfterSeconds = retryAfter ? parseInt(retryAfter) : 60;
+        res.status(429).json({ 
+          error: 'Rate limited by scraper',
+          message: `Scraper is rate limited. Please try again in ${retryAfterSeconds} seconds`,
+          retryAfterSeconds
+        });
+        return;
+      }
+      
+      // Clean error response - avoid nesting
+      const errorMessage = typeof data === 'object' && data && 'error' in data ? (data as any).error : 
+                          typeof data === 'string' ? data : 
+                          `Scraper returned ${upstream.status}`;
+      
+      res.status(upstream.status).json({ 
+        error: errorMessage,
+        status: upstream.status
+      });
       return;
+    }
+
+    // Cache successful result
+    urlCache.set(cacheKey, { data, timestamp: now });
+    
+    // Clean up old cache entries (simple cleanup)
+    if (urlCache.size > 1000) {
+      const cutoff = now - CACHE_DURATION;
+      for (const [key, value] of urlCache.entries()) {
+        if (value.timestamp < cutoff) {
+          urlCache.delete(key);
+        }
+      }
     }
 
     res.status(200).json(data);
     return;
   } catch (err: any) {
-    logger.error('importPropertyFromText failed', { error: err?.message });
-    // setCors was already called above; headers are present here too
-    res.status(500).json({ error: 'Internal error', details: err?.message || String(err) });
+    logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: err?.message || 'Unknown error'
+    });
     return;
   }
 });
