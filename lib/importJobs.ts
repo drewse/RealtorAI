@@ -1,5 +1,20 @@
 import { getImportEndpoint } from './importEndpoint';
 
+/**
+ * Get the dedicated status endpoint for polling
+ */
+export function getImportStatusEndpoint(): string {
+  const url = process.env.NEXT_PUBLIC_IMPORT_STATUS_ENDPOINT;
+  if (!url) {
+    // Build-time + runtime guard 
+    throw new Error(
+      'NEXT_PUBLIC_IMPORT_STATUS_ENDPOINT is not set. ' +
+      'Add it in Vercel (Production/Preview/Development) and redeploy.'
+    );
+  }
+  return url;
+}
+
 export interface ImportJobResult {
   status: 'success' | 'error';
   result?: any;
@@ -80,8 +95,9 @@ export async function pollImportJob(
           return;
         }
 
-        // Fetch job status
-        const response = await fetch(`${endpoint}?id=${jobId}`, {
+        // Fetch job status from dedicated status endpoint
+        const statusEndpoint = getImportStatusEndpoint();
+        const response = await fetch(`${statusEndpoint}?id=${jobId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

@@ -397,6 +397,66 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
   }
 });
 
+// Dedicated fast status endpoint for job polling
+export const importJobStatus = onRequest({ 
+  region: 'us-central1', 
+  timeoutSeconds: 15, 
+  memory: '256MiB' 
+}, async (req, res) => {
+  // --- HARD CORS ---
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('X-Debug-Cors', '1');
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  // --- END HARD CORS ---
+
+  try {
+    // Only GET allowed
+    if (req.method !== 'GET') {
+      res.status(405).json({ error: 'Method Not Allowed' });
+      return;
+    }
+
+    // Validate id query param
+    const jobId = req.query.id as string;
+    if (!jobId) {
+      res.status(400).json({ error: 'Missing job ID' });
+      return;
+    }
+
+    // Fetch job status from Firestore
+    const docRef = admin.firestore().collection('imports').doc(jobId);
+    const doc = await docRef.get();
+    
+    if (!doc.exists) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    const data = doc.data();
+    res.status(200).json({
+      status: data?.status,
+      result: data?.result,
+      error: data?.error,
+      retryAfterSeconds: data?.retryAfterSeconds
+    });
+    return;
+
+  } catch (err: any) {
+    logger.error('importJobStatus failed', { error: err?.message });
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: err?.message || 'Unknown error'
+    });
+    return;
+  }
+});
+
 // Background worker to process import jobs
 export const runImportWorker = onMessagePublished({ 
   topic: 'import-jobs',

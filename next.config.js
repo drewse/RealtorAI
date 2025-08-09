@@ -1,5 +1,5 @@
 // Safety: fail build if env var is missing in prod
-const requiredEnv = ['NEXT_PUBLIC_IMPORT_ENDPOINT'];
+const requiredEnv = ['NEXT_PUBLIC_IMPORT_ENDPOINT', 'NEXT_PUBLIC_IMPORT_STATUS_ENDPOINT'];
 requiredEnv.forEach((k) => {
   if (!process.env[k] && process.env.NODE_ENV === 'production') {
     throw new Error(`Missing required env var: ${k}`);
