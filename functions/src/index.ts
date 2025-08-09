@@ -2,7 +2,6 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
-import * as functions from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { defineString } from 'firebase-functions/params';
 
@@ -281,80 +280,73 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 function setCors(res: any, origin?: string) {
-  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : '';
-  if (allowOrigin) {
-    res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  const allow = origin && ALLOWED_ORIGINS.has(origin) ? origin : '';
+  if (allow) {
+    res.setHeader('Access-Control-Allow-Origin', allow);
     res.setHeader('Vary', 'Origin');
-    // If you ever use cookies/Authorization from the browser, also:
-    // res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
-// ✅ 3. importPropertyFromText
-export const importPropertyFromText = functions.onRequest(
-  { region: 'us-central1' },
-  async (req, res): Promise<void> => {
-    const origin = req.get('Origin') || undefined;
+export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res): Promise<void> => {
+  const origin = req.get('Origin') || undefined;
 
-    // Preflight
-    if (req.method === 'OPTIONS') {
-      setCors(res, origin);
-      res.status(204).send('');
-      return;
-    }
-
+  // Preflight
+  if (req.method === 'OPTIONS') {
     setCors(res, origin);
+    res.status(204).send(''); // no body
+    return;
+  }
 
-    try {
-      if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method Not Allowed' });
-        return;
-      }
+  setCors(res, origin); // ensure CORS on all subsequent responses
 
-      const { text, userId } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
-      if (!text || typeof text !== 'string') {
-        res.status(400).json({ error: 'Missing or invalid "text" in body' });
-        return;
-      }
-
-      // Prefer secret; fallback to env for local/dev
-      const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
-      if (!cloudRunUrl) {
-        logger.error('Missing scraper URL: set SCRAPER_URL via functions:secrets:set or env variable');
-        res.status(500).json({ error: 'Server not configured (SCRAPER_URL missing)' });
-        return;
-      }
-
-      logger.info('Proxying to Cloud Run scraper', { cloudRunUrl });
-
-      const upstream = await fetch(cloudRunUrl, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, userId }),
-      });
-
-      const contentType = upstream.headers.get('content-type') || '';
-      const isJson = contentType.includes('application/json');
-      const payload = isJson ? await upstream.json() : await upstream.text();
-
-      if (!upstream.ok) {
-        logger.error('Scraper error', { status: upstream.status, payload });
-        res.status(upstream.status).json({
-          error: 'Scraper error',
-          details: payload,
-        });
-        return;
-      }
-
-      res.status(200).json(payload);
-      return;
-    } catch (err: any) {
-      logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
-      res.status(500).json({ error: 'Internal error', details: err?.message || String(err) });
+  try {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method Not Allowed' });
       return;
     }
+
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    const { text, userId, city, state } = body;
+    if (!text || typeof text !== 'string') {
+      res.status(400).json({ error: 'Missing or invalid "text"' });
+      return;
+    }
+
+    const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
+    if (!cloudRunUrl) {
+      logger.error('SCRAPER_URL not set');
+      res.status(500).json({ error: 'Server not configured (SCRAPER_URL missing)' });
+      return;
+    }
+
+    const payload: any = { text, userId };
+    if (city) payload.city = city;
+    if (state) payload.state = state;
+
+    const upstream = await fetch(cloudRunUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const ct = upstream.headers.get('content-type') || '';
+    const data = ct.includes('application/json') ? await upstream.json() : await upstream.text();
+
+    if (!upstream.ok) {
+      logger.error('Scraper error', { status: upstream.status, data });
+      res.status(upstream.status).json({ error: 'Scraper error', details: data });
+      return;
+    }
+
+    res.status(200).json(data);
+    return;
+  } catch (err: any) {
+    logger.error('importPropertyFromText failed', { error: err?.message });
+    // setCors was already called above; headers are present here too
+    res.status(500).json({ error: 'Internal error', details: err?.message || String(err) });
+    return;
   }
-);
+});
