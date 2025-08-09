@@ -5,6 +5,11 @@ import fetch from 'node-fetch';
 import * as logger from 'firebase-functions/logger';
 import { defineString } from 'firebase-functions/params';
 
+// Global type extension for cold start logging
+declare global {
+  var scraperUrlLogged: boolean | undefined;
+}
+
 const SCRAPER_URL = defineString('SCRAPER_URL'); // set via functions:secrets:set
 
 setGlobalOptions({ region: 'us-central1' });
@@ -290,17 +295,90 @@ function setCors(res: any, origin?: string) {
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
-// Simple in-memory cache and rate limiting
+// Enhanced caching, single-flight deduplication, and rate limiting
 const urlCache = new Map<string, { data: any; timestamp: number }>();
 const ipLastRequest = new Map<string, number>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const IP_DELAY = 2000; // 2 seconds between requests per IP
+const inFlightRequests = new Map<string, Promise<any>>();
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+const IP_DELAY = 1200; // 1.2 seconds between requests per IP
 
 function getClientIP(req: any): string {
   return req.get('x-forwarded-for')?.split(',')[0] || 
          req.get('x-real-ip') || 
          req.connection?.remoteAddress || 
          'unknown';
+}
+
+function addJitter(baseMs: number, jitterMs: number = 250): number {
+  return baseMs + (Math.random() - 0.5) * 2 * jitterMs;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries: number = 2): Promise<{ data: any; status: number }> {
+  let lastError: any = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const upstream = await fetch(cloudRunUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const ct = upstream.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await upstream.json() : await upstream.text();
+
+      if (upstream.status !== 429) {
+        return { data, status: upstream.status };
+      }
+
+      // Handle 429 - only retry if we have attempts left
+      if (attempt < maxRetries) {
+        const retryAfter = upstream.headers.get('retry-after');
+        let delayMs: number;
+        
+        if (retryAfter) {
+          // Respect Retry-After header, cap to 90s
+          delayMs = Math.min(parseInt(retryAfter) * 1000, 90000);
+        } else {
+          // Use backoff delays: 500ms, then 1500ms with jitter
+          delayMs = attempt === 0 ? addJitter(500) : addJitter(1500);
+        }
+        
+        logger.warn(`429 from scraper, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await sleep(delayMs);
+        continue;
+      }
+
+      // Final 429 after all retries
+      const retryAfter = upstream.headers.get('retry-after');
+      const retryAfterSeconds = retryAfter ? Math.min(parseInt(retryAfter), 90) : 60;
+      
+      return {
+        data: {
+          error: "RATE_LIMITED",
+          message: `Rate limited. Try again in ${retryAfterSeconds} seconds`,
+          retryAfterSeconds
+        },
+        status: 429
+      };
+      
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        const delayMs = attempt === 0 ? addJitter(500) : addJitter(1500);
+        logger.warn(`Scraper request failed, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries}):`, err);
+        await sleep(delayMs);
+        continue;
+      }
+    }
+  }
+
+  // All retries exhausted
+  throw lastError || new Error('All scraper request attempts failed');
 }
 
 export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res): Promise<void> => {
@@ -328,9 +406,46 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
       return;
     }
 
-    // Rate limiting by IP
-    const clientIP = getClientIP(req);
+    const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
+    if (!cloudRunUrl) {
+      logger.error('SCRAPER_URL not set');
+      res.status(500).json({ error: 'Server not configured (SCRAPER_URL missing)' });
+      return;
+    }
+
+    // Log SCRAPER_URL once per cold start
+    if (!global.scraperUrlLogged) {
+      console.log('importPropertyFromText SCRAPER_URL:', cloudRunUrl);
+      global.scraperUrlLogged = true;
+    }
+
     const now = Date.now();
+    const cacheKey = text.trim().toLowerCase();
+
+    // Check cache first
+    const cached = urlCache.get(cacheKey);
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      logger.info('Returning cached result', { url: text });
+      res.status(200).json(cached.data);
+      return;
+    }
+
+    // Single-flight deduplication
+    const existingRequest = inFlightRequests.get(cacheKey);
+    if (existingRequest) {
+      logger.info('Awaiting existing in-flight request', { url: text });
+      try {
+        const result = await existingRequest;
+        res.status(200).json(result);
+        return;
+      } catch (err) {
+        // If the existing request failed, we'll start a new one below
+        logger.warn('Existing in-flight request failed, starting new one', { url: text, error: err });
+      }
+    }
+
+    // Rate limiting by IP (only for new upstream calls)
+    const clientIP = getClientIP(req);
     const lastRequest = ipLastRequest.get(clientIP);
     
     if (lastRequest && now - lastRequest < IP_DELAY) {
@@ -345,77 +460,73 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     
     ipLastRequest.set(clientIP, now);
 
-    // Check cache
-    const cacheKey = text.trim().toLowerCase();
-    const cached = urlCache.get(cacheKey);
-    if (cached && now - cached.timestamp < CACHE_DURATION) {
-      logger.info('Returning cached result', { url: text });
-      res.status(200).json(cached.data);
-      return;
-    }
+    // Create new request with single-flight deduplication
+    const requestPromise = (async () => {
+      const payload: any = { text, userId };
+      if (city) payload.city = city;
+      if (state) payload.state = state;
 
-    const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
-    if (!cloudRunUrl) {
-      logger.error('SCRAPER_URL not set');
-      res.status(500).json({ error: 'Server not configured (SCRAPER_URL missing)' });
-      return;
-    }
+      const { data, status } = await makeScraperRequest(cloudRunUrl, payload);
 
-    const payload: any = { text, userId };
-    if (city) payload.city = city;
-    if (state) payload.state = state;
+      if (status === 200) {
+        // Cache successful result
+        urlCache.set(cacheKey, { data, timestamp: now });
+        
+        // Clean up old cache entries (simple cleanup)
+        if (urlCache.size > 1000) {
+          const cutoff = now - CACHE_DURATION;
+          for (const [key, value] of urlCache.entries()) {
+            if (value.timestamp < cutoff) {
+              urlCache.delete(key);
+            }
+          }
+        }
+        
+        return data;
+      } else if (status === 429) {
+        // Return the clean 429 response
+        return data;
+      } else {
+        // Clean error response - avoid nesting
+        const errorMessage = typeof data === 'object' && data && 'error' in data ? (data as any).error : 
+                            typeof data === 'string' ? data : 
+                            `Scraper returned ${status}`;
+        
+        // Clamp error details to 2000 chars max
+        const clampedMessage = typeof errorMessage === 'string' && errorMessage.length > 2000 
+          ? errorMessage.substring(0, 2000) + '...' 
+          : errorMessage;
+        
+        throw new Error(clampedMessage);
+      }
+    })();
 
-    const upstream = await fetch(cloudRunUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    // Store in-flight request
+    inFlightRequests.set(cacheKey, requestPromise);
 
-    const ct = upstream.headers.get('content-type') || '';
-    const data = ct.includes('application/json') ? await upstream.json() : await upstream.text();
-
-    if (!upstream.ok) {
-      logger.error('Scraper returned error', { status: upstream.status, url: text });
+    try {
+      const result = await requestPromise;
       
-      // Handle rate limiting from upstream
-      if (upstream.status === 429) {
-        const retryAfter = upstream.headers.get('retry-after');
-        const retryAfterSeconds = retryAfter ? parseInt(retryAfter) : 60;
-        res.status(429).json({ 
-          error: 'Rate limited by scraper',
-          message: `Scraper is rate limited. Please try again in ${retryAfterSeconds} seconds`,
-          retryAfterSeconds
-        });
+      // Handle 429 specifically
+      if (result.error === "RATE_LIMITED") {
+        res.status(429).json(result);
         return;
       }
       
-      // Clean error response - avoid nesting
-      const errorMessage = typeof data === 'object' && data && 'error' in data ? (data as any).error : 
-                          typeof data === 'string' ? data : 
-                          `Scraper returned ${upstream.status}`;
-      
-      res.status(upstream.status).json({ 
-        error: errorMessage,
-        status: upstream.status
+      res.status(200).json(result);
+      return;
+    } catch (err: any) {
+      logger.error('Scraper request failed', { url: text, error: err?.message });
+      res.status(500).json({ 
+        error: 'Scraper request failed', 
+        message: err?.message || 'Unknown error'
       });
       return;
+    } finally {
+      // Always clean up in-flight request
+      inFlightRequests.delete(cacheKey);
     }
 
-    // Cache successful result
-    urlCache.set(cacheKey, { data, timestamp: now });
-    
-    // Clean up old cache entries (simple cleanup)
-    if (urlCache.size > 1000) {
-      const cutoff = now - CACHE_DURATION;
-      for (const [key, value] of urlCache.entries()) {
-        if (value.timestamp < cutoff) {
-          urlCache.delete(key);
-        }
-      }
-    }
-
-    res.status(200).json(data);
-    return;
   } catch (err: any) {
     logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
     res.status(500).json({ 
