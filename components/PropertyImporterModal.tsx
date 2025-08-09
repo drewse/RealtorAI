@@ -4,9 +4,6 @@ import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { getImportEndpoint } from '@/lib/importEndpoint';
 
-// Module-level single-flight deduplication
-const inFlightRequests = new Map<string, Promise<any>>();
-
 interface PropertyData {
   address: string;
   addressLine1?: string;
@@ -45,7 +42,9 @@ export default function PropertyImporterModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [rateLimited, setRateLimited] = useState(false);
+  const [jobStatus, setJobStatus] = useState<'idle' | 'queued' | 'working' | 'success' | 'error'>('idle');
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null);
   const [countdown, setCountdown] = useState(0);
   
   const { user } = useAuth();
@@ -57,10 +56,62 @@ export default function PropertyImporterModal({
         setCountdown(countdown - 1);
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (rateLimited && countdown === 0) {
-      setRateLimited(false);
+    } else if (retryAfterSeconds && countdown === 0) {
+      setRetryAfterSeconds(null);
     }
-  }, [countdown, rateLimited]);
+  }, [countdown, retryAfterSeconds]);
+
+  // Job status polling
+  React.useEffect(() => {
+    if (!jobId || jobStatus === 'success' || jobStatus === 'error') {
+      return;
+    }
+
+    const pollJobStatus = async () => {
+      try {
+        const functionUrl = getImportEndpoint();
+        const response = await fetch(`${functionUrl}?id=${jobId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setJobStatus(data.status);
+
+          if (data.status === 'success' && data.result) {
+            setSuccess(true);
+            setLoading(false);
+            console.log('🎉 Property import successful!');
+            onImportSuccess(data.result.data || data.result);
+            setTimeout(() => {
+              onClose();
+              setContent('');
+              setHasPermission(false);
+              setSuccess(false);
+              setJobStatus('idle');
+              setJobId(null);
+            }, 1500);
+          } else if (data.status === 'error') {
+            setLoading(false);
+            setError(data.error || 'Import failed');
+            if (data.retryAfterSeconds) {
+              setRetryAfterSeconds(data.retryAfterSeconds);
+              setCountdown(data.retryAfterSeconds);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to poll job status:', err);
+      }
+    };
+
+    // Poll every 2 seconds while job is active
+    const interval = setInterval(pollJobStatus, 2000);
+    return () => clearInterval(interval);
+  }, [jobId, jobStatus, onImportSuccess, onClose]);
 
   const handleImport = async () => {
     if (!content.trim()) {
@@ -78,50 +129,14 @@ export default function PropertyImporterModal({
       return;
     }
 
-    const urlKey = content.trim().toLowerCase();
-
-    // Client-side single-flight deduplication
-    const existingRequest = inFlightRequests.get(urlKey);
-    if (existingRequest) {
-      console.log('📋 Awaiting existing request for same URL');
-      setLoading(true);
-      setError('');
-      setSuccess(false);
-      setRateLimited(false);
-
-      try {
-        const result = await existingRequest;
-        console.log('✅ Got result from existing request:', result);
-        
-        if (result.success) {
-          setSuccess(true);
-          console.log('🎉 Property import successful!');
-          onImportSuccess(result.data);
-          setTimeout(() => {
-            onClose();
-            setContent('');
-            setHasPermission(false);
-            setSuccess(false);
-          }, 1500);
-        } else {
-          throw new Error(result.message || 'Import failed');
-        }
-      } catch (error) {
-        console.error('❌ Existing request failed:', error);
-        setError(error instanceof Error ? error.message : 'Failed to import property');
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
     setLoading(true);
     setError('');
     setSuccess(false);
-    setRateLimited(false);
+    setJobStatus('idle');
+    setJobId(null);
+    setRetryAfterSeconds(null);
 
-    // Create new request with single-flight deduplication
-    const requestPromise = (async () => {
+    try {
       const functionUrl = getImportEndpoint(); // ALWAYS the Firebase Function URL on Vercel
 
       // Prepare request body with text field
@@ -130,8 +145,7 @@ export default function PropertyImporterModal({
         userId: user.uid,
       };
 
-      // Log the full request being sent
-      console.log('📤 Sending request to:', functionUrl);
+      console.log('📤 Creating import job:', functionUrl);
       console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(functionUrl, {
@@ -142,82 +156,28 @@ export default function PropertyImporterModal({
         body: JSON.stringify(requestBody),
       });
 
-      // Log the full response
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
-
-      // Parse response
-      let responseData: any = null;
-      const ct = response.headers.get('content-type') || '';
-      if (ct.includes('application/json')) {
-        try { 
-          responseData = await response.json(); 
-        } catch (e) {
-          console.warn('Failed to parse JSON response:', e);
-        }
-      }
-      
-      if (!responseData) {
-        try { 
-          responseData = await response.text(); 
-        } catch (e) {
-          responseData = `HTTP ${response.status}`;
-        }
-      }
+      console.log('📥 Job creation response status:', response.status);
 
       if (!response.ok) {
-        // Handle rate limiting specifically
-        if (response.status === 429) {
-          const retryAfterSeconds = responseData?.retryAfterSeconds || 60;
-          const errorObj = new Error(`Rate limited. Please wait ${retryAfterSeconds} seconds before trying again.`) as any;
-          errorObj.isRateLimit = true;
-          errorObj.retryAfterSeconds = retryAfterSeconds;
-          throw errorObj;
-        }
-
-        // Handle other errors
-        const errorMessage = responseData?.error || responseData?.message || responseData || `HTTP ${response.status}`;
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error || errorData?.message || `HTTP ${response.status}`;
         throw new Error(errorMessage);
       }
 
-      return responseData;
-    })();
-
-    // Store the in-flight request
-    inFlightRequests.set(urlKey, requestPromise);
-
-    try {
-      const result = await requestPromise;
-      console.log('✅ Success response:', result);
+      const result = await response.json();
+      console.log('✅ Job created:', result);
       
-      if (result.success) {
-        setSuccess(true);
-        console.log('🎉 Property import successful!');
-        onImportSuccess(result.data);
-        setTimeout(() => {
-          onClose();
-          setContent('');
-          setHasPermission(false);
-          setSuccess(false);
-        }, 1500);
+      if (result.jobId) {
+        setJobId(result.jobId);
+        setJobStatus('queued');
+        // Keep loading true - will be set false when job completes or errors
       } else {
-        throw new Error(result.message || 'Import failed');
+        throw new Error('No job ID returned');
       }
     } catch (error: any) {
-      console.error('❌ Property import error:', error);
-      
-      // Handle rate limiting specifically
-      if (error.isRateLimit) {
-        setRateLimited(true);
-        setCountdown(error.retryAfterSeconds);
-        setError(error.message);
-      } else {
-        setError(error instanceof Error ? error.message : 'Failed to import property');
-      }
-    } finally {
+      console.error('❌ Failed to create import job:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start import');
       setLoading(false);
-      // Always clean up in-flight request
-      inFlightRequests.delete(urlKey);
     }
   };
 
@@ -331,15 +291,25 @@ export default function PropertyImporterModal({
             </button>
             <button
               onClick={handleImport}
-              disabled={loading || !content.trim() || !hasPermission || rateLimited}
+              disabled={loading || !content.trim() || !hasPermission || retryAfterSeconds !== null}
               className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-2 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {jobStatus === 'queued' ? (
+                <>
+                  <div className="animate-pulse rounded-full h-4 w-4 bg-white"></div>
+                  <span>Queued...</span>
+                </>
+              ) : jobStatus === 'working' ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Importing...</span>
                 </>
-              ) : rateLimited ? (
+              ) : loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Starting...</span>
+                </>
+              ) : retryAfterSeconds ? (
                 <>
                   <div className="w-4 h-4 flex items-center justify-center">
                     <i className="ri-timer-line"></i>

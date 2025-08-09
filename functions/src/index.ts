@@ -1,9 +1,11 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
 import * as logger from 'firebase-functions/logger';
 import { defineString } from 'firebase-functions/params';
+import { PubSub } from '@google-cloud/pubsub';
 
 // Global type extension for cold start logging
 declare global {
@@ -281,109 +283,12 @@ export const generateBuyerPersona = onRequest(
 
 
 
-// Enhanced caching, single-flight deduplication, and rate limiting
-const urlCache = new Map<string, { data: any; timestamp: number }>();
-const ipLastRequest = new Map<string, number>();
-const inFlightRequests = new Map<string, Promise<any>>();
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
-const IP_DELAY = 1200; // 1.2 seconds between requests per IP
+// Helper functions for the worker are now inline in makeScraperRequestWithTimeout
 
-function getClientIP(req: any): string {
-  return req.get('x-forwarded-for')?.split(',')[0] || 
-         req.get('x-real-ip') || 
-         req.connection?.remoteAddress || 
-         'unknown';
-}
-
-function addJitter(baseMs: number, jitterMs: number = 250): number {
-  return baseMs + (Math.random() - 0.5) * 2 * jitterMs;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries: number = 2): Promise<{ data: any; status: number }> {
-  let lastError: any = null;
-  
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 30_000);
-      let upstream: any;
-      try {
-        upstream = await fetch(cloudRunUrl, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
-      } catch (e: any) {
-        if (e?.name === 'AbortError') {
-          throw new Error('UPSTREAM_TIMEOUT');
-        }
-        throw e;
-      } finally {
-        clearTimeout(t);
-      }
-
-      const ct = upstream.headers.get('content-type') || '';
-      const data = ct.includes('application/json') ? await upstream.json() : await upstream.text();
-
-      if (upstream.status !== 429) {
-        return { data, status: upstream.status };
-      }
-
-      // Handle 429 - only retry if we have attempts left
-      if (attempt < maxRetries) {
-        const retryAfter = upstream.headers.get('retry-after');
-        let delayMs: number;
-        
-        if (retryAfter) {
-          // Respect Retry-After header, cap to 90s
-          delayMs = Math.min(parseInt(retryAfter) * 1000, 90000);
-        } else {
-          // Use backoff delays: 500ms, then 1500ms with jitter
-          delayMs = attempt === 0 ? addJitter(500) : addJitter(1500);
-        }
-        
-        logger.warn(`429 from scraper, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await sleep(delayMs);
-        continue;
-      }
-
-      // Final 429 after all retries
-      const retryAfter = upstream.headers.get('retry-after');
-      const retryAfterSeconds = retryAfter ? Math.min(parseInt(retryAfter), 90) : 60;
-      
-      return {
-        data: {
-          error: "RATE_LIMITED",
-          message: `Rate limited. Try again in ${retryAfterSeconds} seconds`,
-          retryAfterSeconds
-        },
-        status: 429
-      };
-      
-    } catch (err) {
-      lastError = err;
-      if (attempt < maxRetries) {
-        const delayMs = attempt === 0 ? addJitter(500) : addJitter(1500);
-        logger.warn(`Scraper request failed, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries}):`, err);
-        await sleep(delayMs);
-        continue;
-      }
-    }
-  }
-
-  // All retries exhausted
-  throw lastError || new Error('All scraper request attempts failed');
-}
-
-export const importPropertyFromText = onRequest({ region: 'us-central1', timeoutSeconds: 180, memory: '512MiB' }, async (req, res) => {
+export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res) => {
   // --- HARD CORS (TEMP) ---
   res.setHeader('Access-Control-Allow-Origin', '*'); // TEMP: open wide so the browser cannot block
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('Access-Control-Expose-Headers', 'X-Debug-Cors,X-Received-Origin');
@@ -396,166 +301,208 @@ export const importPropertyFromText = onRequest({ region: 'us-central1', timeout
   // --- END HARD CORS ---
 
   try {
+    // GET endpoint for job status
+    if (req.method === 'GET') {
+      const jobId = req.query.id as string;
+      if (!jobId) {
+        res.status(400).json({ error: 'Missing job ID' });
+        return;
+      }
+
+      const docRef = admin.firestore().collection('imports').doc(jobId);
+      const doc = await docRef.get();
+      
+      if (!doc.exists) {
+        res.status(404).json({ error: 'Job not found' });
+        return;
+      }
+
+      const data = doc.data();
+      res.status(200).json({
+        jobId,
+        status: data?.status,
+        result: data?.result,
+        error: data?.error,
+        retryAfterSeconds: data?.retryAfterSeconds,
+        createdAt: data?.createdAt,
+        updatedAt: data?.updatedAt
+      });
+      return;
+    }
+
+    // POST endpoint for job creation
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method Not Allowed' });
+      return;
+    }
+
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    
+    // CORS test probe
     if (req.query?.corsTest === '1' || body?.corsTest === true) {
       res.status(200).json({
         ok: true,
         msg: 'CORS ok',
         origin: req.get('Origin') || null,
         note: 'Temporary probe bypasses scraper',
-          });
-          return;
-        }
-      
-    if (req.method !== 'POST') {
-      res.status(405).json({ error: 'Method Not Allowed' });
+      });
       return;
     }
 
-    const { text, userId, city, state } = body;
+    const { text, userId } = body;
     if (!text || typeof text !== 'string') {
       res.status(400).json({ error: 'Missing or invalid "text"' });
-          return;
-        }
+      return;
+    }
 
-    // Define SCRAPER_URL inside handler to avoid module-load issues
+    // Create import job document
+    const docRef = admin.firestore().collection('imports').doc();
+    const jobData = {
+      url: text,
+      userId: userId || null,
+      status: 'queued',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    await docRef.set(jobData);
+
+    // Publish to Pub/Sub for background processing
+    const pubsubMessage = {
+      id: docRef.id,
+      url: text,
+      userId: userId || null
+    };
+
+    const pubsub = new PubSub();
+    const topic = pubsub.topic('import-jobs');
+    await topic.publishMessage({
+      json: pubsubMessage
+    });
+
+    // Return job ID immediately (202 Accepted)
+    res.status(202).json({
+      jobId: docRef.id,
+      status: 'queued'
+    });
+    return;
+
+  } catch (err: any) {
+    logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: err?.message || 'Unknown error'
+    });
+    return;
+  }
+});
+
+// Background worker to process import jobs
+export const runImportWorker = onMessagePublished({ 
+  topic: 'import-jobs',
+  region: 'us-central1', 
+  timeoutSeconds: 540, 
+  memory: '512MiB' 
+}, async (event) => {
+  const messageData = event.data.message.json;
+  const { id, url, userId } = messageData;
+
+  logger.info('Processing import job', { id, url, userId });
+
+  const docRef = admin.firestore().collection('imports').doc(id);
+  
+  try {
+    // Update status to working
+    await docRef.update({
+      status: 'working',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Get Cloud Run URL
     const SCRAPER_URL = defineString('SCRAPER_URL');
     const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
     if (!cloudRunUrl) {
-      logger.error('SCRAPER_URL not set');
-      res.status(500).json({ error: 'Server not configured (SCRAPER_URL missing)' });
-          return;
-        }
-
-    // Log SCRAPER_URL once per cold start
-    if (!global.scraperUrlLogged) {
-      console.log('importPropertyFromText SCRAPER_URL:', cloudRunUrl);
-      global.scraperUrlLogged = true;
+      throw new Error('SCRAPER_URL not configured');
     }
 
-    const now = Date.now();
-    const cacheKey = text.trim().toLowerCase();
+    // Call scraper with generous timeout (120s)
+    const payload = { text: url, userId };
+    const { data, status } = await makeScraperRequestWithTimeout(cloudRunUrl, payload, 120000);
 
-    // Check cache first
-    const cached = urlCache.get(cacheKey);
-    if (cached && now - cached.timestamp < CACHE_DURATION) {
-      logger.info('Returning cached result', { url: text });
-      res.status(200).json(cached.data);
-              return;
-            }
-            
-    // Single-flight deduplication
-    const existingRequest = inFlightRequests.get(cacheKey);
-    if (existingRequest) {
-      logger.info('Awaiting existing in-flight request', { url: text });
-      try {
-        const result = await existingRequest;
-        res.status(200).json(result);
-        return;
-      } catch (err) {
-        // If the existing request failed, we'll start a new one below
-        logger.warn('Existing in-flight request failed, starting new one', { url: text, error: err });
-      }
+    if (status === 200) {
+      // Success
+      await docRef.update({
+        status: 'success',
+        result: data,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      logger.info('Import job completed successfully', { id });
+    } else if (status === 429) {
+      // Rate limited
+      const retryAfterSeconds = data?.retryAfterSeconds || 60;
+      await docRef.update({
+        status: 'error',
+        error: data?.message || 'Rate limited',
+        retryAfterSeconds,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      logger.warn('Import job rate limited', { id, retryAfterSeconds });
+    } else {
+      // Other error
+      const errorMessage = typeof data === 'object' && data && 'error' in data ? (data as any).error : 
+                          typeof data === 'string' ? data : 
+                          `Scraper returned ${status}`;
+      
+      await docRef.update({
+        status: 'error',
+        error: errorMessage,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      logger.error('Import job failed', { id, status, error: errorMessage });
     }
 
-    // Rate limiting by IP (only for new upstream calls)
-    const clientIP = getClientIP(req);
-    const lastRequest = ipLastRequest.get(clientIP);
+  } catch (error: any) {
+    logger.error('Import worker failed', { id, error: error?.message, stack: error?.stack });
     
-    if (lastRequest && now - lastRequest < IP_DELAY) {
-      const waitTime = Math.ceil((IP_DELAY - (now - lastRequest)) / 1000);
-      res.status(429).json({ 
-        error: 'Rate limited',
-        message: `Please wait ${waitTime} seconds before making another request`,
-        retryAfterSeconds: waitTime
-              });
-              return;
-            }
-            
-    ipLastRequest.set(clientIP, now);
-
-    // Create new request with single-flight deduplication
-    const requestPromise = (async () => {
-      const payload: any = { text, userId };
-      if (city) payload.city = city;
-      if (state) payload.state = state;
-
-      const { data, status } = await makeScraperRequest(cloudRunUrl, payload);
-
-      if (status === 200) {
-        // Cache successful result
-        urlCache.set(cacheKey, { data, timestamp: now });
-        
-        // Clean up old cache entries (simple cleanup)
-        if (urlCache.size > 1000) {
-          const cutoff = now - CACHE_DURATION;
-          for (const [key, value] of urlCache.entries()) {
-            if (value.timestamp < cutoff) {
-              urlCache.delete(key);
-            }
-          }
-        }
-        
-        return data;
-      } else if (status === 429) {
-        // Return the clean 429 response
-        return data;
-      } else {
-        // Clean error response - avoid nesting
-        const errorMessage = typeof data === 'object' && data && 'error' in data ? (data as any).error : 
-                            typeof data === 'string' ? data : 
-                            `Scraper returned ${status}`;
-        
-        // Clamp error details to 2000 chars max
-        const clampedMessage = typeof errorMessage === 'string' && errorMessage.length > 2000 
-          ? errorMessage.substring(0, 2000) + '...' 
-          : errorMessage;
-        
-        throw new Error(clampedMessage);
-      }
-    })();
-
-    // Store in-flight request
-    inFlightRequests.set(cacheKey, requestPromise);
-
-    try {
-      const result = await requestPromise;
-      
-      // Handle 429 specifically
-      if (result.error === "RATE_LIMITED") {
-        res.status(429).json(result);
-        return;
-      }
-
-      res.status(200).json(result);
-          return;
-    } catch (err: any) {
-      if (err?.message === 'UPSTREAM_TIMEOUT') {
-        logger.warn('Upstream timeout', { url: text });
-        res.status(504).json({
-          error: 'UPSTREAM_TIMEOUT',
-          message: 'Scraper took too long. Please try again.'
-        });
-        return;
-      }
-      
-      logger.error('Scraper request failed', { url: text, error: err?.message });
-      res.status(500).json({
-        error: 'Scraper request failed', 
-        message: err?.message || 'Unknown error'
-      });
-      return;
-    } finally {
-      // Always clean up in-flight request
-      inFlightRequests.delete(cacheKey);
+    let errorMessage = error?.message || 'Unknown error';
+    let retryAfterSeconds: number | undefined;
+    
+    if (error?.message === 'UPSTREAM_TIMEOUT') {
+      errorMessage = 'Scraper took too long. Please try again.';
     }
-      
-  } catch (err: any) {
-    logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
-        res.status(500).json({
-      error: 'Internal server error', 
-      message: err?.message || 'Unknown error'
-        });
-        return;
-      }
-      });
+    
+    await docRef.update({
+      status: 'error',
+      error: errorMessage,
+      retryAfterSeconds,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+});
+
+// Helper function for worker with longer timeout
+async function makeScraperRequestWithTimeout(cloudRunUrl: string, payload: any, timeoutMs: number): Promise<{ data: any; status: number }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const upstream = await fetch(cloudRunUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const ct = upstream.headers.get('content-type') || '';
+    const data = ct.includes('application/json') ? await upstream.json() : await upstream.text();
+
+    return { data, status: upstream.status };
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      throw new Error('UPSTREAM_TIMEOUT');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
