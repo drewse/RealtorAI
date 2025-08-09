@@ -355,17 +355,22 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
       return;
     }
 
+    const queueAt = Date.now();
+    logger.info('job.create.request', { userId, url: text, queueAt });
+
     // Create import job document
     const docRef = admin.firestore().collection('imports').doc();
     const jobData = {
       url: text,
       userId: userId || null,
       status: 'queued',
+      queueAt,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
     
-    await docRef.set(jobData);
+    await docRef.set(jobData, { merge: true });
+    logger.info('job.create.saved', { id: docRef.id, userId, url: text });
 
     // Publish to Pub/Sub for background processing
     const pubsubMessage = {
@@ -379,6 +384,7 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     await topic.publishMessage({
       json: pubsubMessage
     });
+    logger.info('job.publish.ok', { id: docRef.id });
 
     // Return job ID immediately (202 Accepted)
     res.status(202).json({
@@ -388,7 +394,8 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
     return;
 
   } catch (err: any) {
-    logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
+    const { text, userId } = req.body || {};
+    logger.error('job.create.error', { userId, url: text, err: err?.message });
     res.status(500).json({ 
       error: 'Internal server error', 
       message: err?.message || 'Unknown error'
@@ -439,6 +446,8 @@ export const importJobStatus = onRequest({
     }
 
     const data = doc.data();
+    logger.info('job.status.get', { id: jobId, status: data?.status || 'missing' });
+    
     res.status(200).json({
       status: data?.status,
       result: data?.result,
@@ -467,17 +476,11 @@ export const runImportWorker = onMessagePublished({
   const messageData = event.data.message.json;
   const { id, url, userId } = messageData;
 
-  logger.info('Processing import job', { id, url, userId });
-
+  const startAt = Date.now();
+  
   const docRef = admin.firestore().collection('imports').doc(id);
   
   try {
-    // Update status to working
-    await docRef.update({
-      status: 'working',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
     // Get Cloud Run URL
     const SCRAPER_URL = defineString('SCRAPER_URL');
     const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
@@ -485,45 +488,72 @@ export const runImportWorker = onMessagePublished({
       throw new Error('SCRAPER_URL not configured');
     }
 
+    // Guardrail: Check if SCRAPER_URL is misconfigured
+    if (/cloudfunctions\.net/.test(cloudRunUrl)) {
+      const errMsg = 'SCRAPER_URL misconfigured (cloudfunctions.net). Must be Cloud Run (a.run.app).';
+      logger.error('worker.config.invalid_scraper_url', { id, cloudRunUrl });
+      await docRef.set({
+        status: 'error',
+        error: errMsg,
+        endAt: Date.now(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      return;
+    }
+
+    logger.info('worker.pickup', { id, url, userId, hasScraperUrl: !!cloudRunUrl, startAt });
+
+    // Update status to working
+    await docRef.set({
+      status: 'working',
+      startAt,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
     // Call scraper with polling for 202 responses
     const payload = { text: url, userId };
     const { data, status } = await makeScraperRequestWithPolling(cloudRunUrl, payload, id);
 
     if (status === 200) {
       // Success
-      await docRef.update({
+      const endAt = Date.now();
+      logger.info('worker.done.success', { id, totalMs: endAt - startAt });
+      await docRef.set({
         status: 'success',
         result: data,
+        endAt,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-      logger.info('Import job completed successfully', { id });
+      }, { merge: true });
     } else if (status === 429) {
       // Rate limited
       const retryAfterSeconds = data?.retryAfterSeconds || 60;
-      await docRef.update({
+      const endAt = Date.now();
+      logger.warn('worker.done.rate_limited', { id, totalMs: endAt - startAt, retryAfterSeconds });
+      await docRef.set({
         status: 'error',
         error: data?.message || 'Rate limited',
         retryAfterSeconds,
+        endAt,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-      logger.warn('Import job rate limited', { id, retryAfterSeconds });
+      }, { merge: true });
     } else {
       // Other error
       const errorMessage = typeof data === 'object' && data && 'error' in data ? (data as any).error : 
                           typeof data === 'string' ? data : 
                           `Scraper returned ${status}`;
       
-      await docRef.update({
+      const endAt = Date.now();
+      logger.error('worker.done.error', { id, totalMs: endAt - startAt, error: errorMessage, status });
+      await docRef.set({
         status: 'error',
         error: errorMessage,
+        endAt,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-      logger.error('Import job failed', { id, status, error: errorMessage });
+      }, { merge: true });
     }
 
   } catch (error: any) {
-    logger.error('Import worker failed', { id, error: error?.message, stack: error?.stack });
-    
+    const endAt = Date.now();
     let errorMessage = error?.message || 'Unknown error';
     let retryAfterSeconds: number | undefined;
     
@@ -531,12 +561,15 @@ export const runImportWorker = onMessagePublished({
       errorMessage = 'Scraper took too long. Please try again.';
     }
     
-    await docRef.update({
+    logger.error('worker.done.error', { id, totalMs: endAt - startAt, error: errorMessage, status: null });
+    
+    await docRef.set({
       status: 'error',
       error: errorMessage,
       retryAfterSeconds,
+      endAt,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
+    }, { merge: true });
   }
 });
 
@@ -571,47 +604,58 @@ async function makeScraperRequestWithTimeout(cloudRunUrl: string, payload: any, 
 async function makeScraperRequestWithPolling(cloudRunUrl: string, payload: any, jobId: string): Promise<{ data: any; status: number }> {
   const maxPollingRetries = 30;
   const pollingIntervalMs = 2000; // 2 seconds
+  let attempt = 0;
+  const t0 = Date.now();
   
-  logger.info('Making initial scraper request', { jobId, url: cloudRunUrl });
+  logger.info('worker.upstream.request', { id: jobId, target: cloudRunUrl });
   
   // Make initial request
   let { data, status } = await makeScraperRequestWithTimeout(cloudRunUrl, payload, 120000);
+  const dt = Date.now() - t0;
+  logger.info('worker.upstream.response', { id: jobId, attempt, status, ms: dt });
   
   // Handle immediate success or error responses
   if (status !== 202) {
-    logger.info('Scraper returned non-202 status immediately', { jobId, status });
     return { data, status };
   }
   
   // Handle 202 - scraper is processing asynchronously, need to poll
-  logger.info('Scraper returned 202, starting polling', { jobId, maxRetries: maxPollingRetries });
+  logger.info('worker.upstream.poll.wait', { id: jobId, attempt, waitMs: pollingIntervalMs });
   
   let pollAttempt = 0;
   while (pollAttempt < maxPollingRetries) {
     pollAttempt++;
-    
-    logger.info('Polling scraper for completion', { jobId, attempt: pollAttempt, maxRetries: maxPollingRetries });
+    attempt = pollAttempt; // Update global attempt counter
     
     // Wait before polling
     await new Promise(resolve => setTimeout(resolve, pollingIntervalMs));
     
     try {
       // Poll the scraper for completion
+      const pollT0 = Date.now();
       const pollResult = await makeScraperRequestWithTimeout(cloudRunUrl, payload, 30000); // Shorter timeout for polls
+      const pollDt = Date.now() - pollT0;
+      
+      logger.info('worker.upstream.response', { id: jobId, attempt, status: pollResult.status, ms: pollDt });
       
       if (pollResult.status === 200) {
-        logger.info('Scraper polling successful', { jobId, attempt: pollAttempt });
         return { data: pollResult.data, status: 200 };
       } else if (pollResult.status === 202) {
-        logger.info('Scraper still processing', { jobId, attempt: pollAttempt });
+        logger.info('worker.upstream.poll.wait', { id: jobId, attempt, waitMs: pollingIntervalMs });
         // Continue polling
+      } else if (pollResult.status === 429) {
+        // Extract retry-after for 429s during polling
+        const retryAfterSeconds = pollResult.data?.retryAfterSeconds || 60;
+        logger.warn('worker.upstream.rate_limited', { id: jobId, attempt, retryAfter: retryAfterSeconds });
+        return { data: pollResult.data, status: pollResult.status };
       } else {
-        // Non-200, non-202 response during polling
-        logger.warn('Scraper polling returned error status', { jobId, attempt: pollAttempt, status: pollResult.status });
+        // Non-200, non-202, non-429 response during polling
         return { data: pollResult.data, status: pollResult.status };
       }
     } catch (error: any) {
-      logger.warn('Scraper polling attempt failed', { jobId, attempt: pollAttempt, error: error?.message });
+      if (error?.message === 'UPSTREAM_TIMEOUT') {
+        logger.error('worker.upstream.timeout', { id: jobId, attempt });
+      }
       
       // If this is the last attempt, throw the error
       if (pollAttempt >= maxPollingRetries) {
@@ -622,7 +666,7 @@ async function makeScraperRequestWithPolling(cloudRunUrl: string, payload: any, 
   }
   
   // If we reach here, polling timed out
-  logger.error('Scraper polling timed out after all retries', { jobId, attempts: pollAttempt });
+  logger.error('worker.upstream.timeout', { id: jobId, attempt: pollAttempt });
   return {
     data: { error: 'Scraper timed out after polling', message: 'The scraper is taking too long to complete. Please try again.' },
     status: 504
