@@ -76,6 +76,11 @@ export default function PropertyImporterModal({
       return;
     }
 
+    // Disable button immediately and prevent re-entry
+    if (importing) {
+      return;
+    }
+
     setImporting(true);
     setError('');
     setSuccess(false);
@@ -123,7 +128,9 @@ export default function PropertyImporterModal({
       console.error('❌ Property import error:', error);
       
       // Handle specific error cases
-      if (error.message?.includes('429')) {
+      if (error.message?.includes('TOO_MANY_ACTIVE_JOBS')) {
+        setError('Finish your current import before starting another.');
+      } else if (error.message?.includes('429')) {
         setError('Rate limited. Please try again later.');
       } else if (error.message?.includes('timeout')) {
         setError('Import job timed out. Please try again.');

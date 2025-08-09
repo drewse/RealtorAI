@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
 import * as logger from 'firebase-functions/logger';
 import { defineString } from 'firebase-functions/params';
 import { PubSub } from '@google-cloud/pubsub';
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 
 // Global type extension for cold start logging
 declare global {
@@ -24,11 +24,14 @@ console.log('🔧 Environment:', process.env.NODE_ENV || 'production');
 
 // Utility functions for idempotent job creation
 function createStableId(s: string): string {
-  return crypto.createHash('sha1').update(s).digest('hex');
+  return createHash('sha1').update(s).digest('hex');
 }
 
 // Module-level single-flight publish guard
 const publishingKeys = new Set<string>();
+const db = admin.firestore();
+const pubsub = new PubSub();
+const publisher = pubsub.topic('import-jobs');
 
 
 
@@ -358,122 +361,97 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
       return;
     }
 
-    const { text, userId } = body;
-    if (!text || typeof text !== 'string') {
-      res.status(400).json({ error: 'Missing or invalid "text"' });
+    try {
+      // 1) Validate input
+      const { text, userId } = body;
+      const url = (text || '').trim();
+      if (!url) {
+        res.status(400).json({ error: 'BAD_REQUEST', message: 'text (url) is required' });
+        return;
+      }
+      const jobKey = `${userId}:${url.toLowerCase()}`;
+      const jobId = createStableId(jobKey);
+      const docRef = db.collection('imports').doc(jobId);
+      const queueAt = Date.now();
+
+      logger.info('job.create.request', { userId, url, queueAt });
+
+      // 2) Soft limit: check for another active job (outside transaction)
+      // Only check for this user; if a doc with status queued/working and different URL exists in last 2m, return 429
+      const activeSnap = await db.collection('imports')
+        .where('userId', '==', userId)
+        .where('status', 'in', ['queued', 'working'])
+        .orderBy('updatedAt', 'desc')
+        .limit(1)
+        .get();
+      if (!activeSnap.empty) {
+        const active = activeSnap.docs[0].data() as any;
+        if (active.url && active.url !== url) {
+          res.status(429).json({
+            error: 'TOO_MANY_ACTIVE_JOBS',
+            message: 'Finish current import before starting another.',
+            activeJobId: activeSnap.docs[0].id,
+            activeUrl: active.url,
+          });
+          return;
+        }
+      }
+
+      // 3) Idempotent create using a transaction that ONLY reads/writes this doc
+      const result = await db.runTransaction(async (t) => {
+        const snap = await t.get(docRef);
+        if (snap.exists) {
+          const data = snap.data() as any;
+          // If active → return as-is
+          if (data.status === 'queued' || data.status === 'working') {
+            logger.info('job.create.idempotent_hit', { jobId, userId, url, status: data.status });
+            return { created: false, jobId, status: data.status };
+          }
+          // If recently completed (<=10m) → reuse
+          const updatedAt = data.updatedAt?.toMillis?.() ?? 0;
+          if (Date.now() - updatedAt <= 10 * 60 * 1000) {
+            logger.info('job.create.idempotent_hit', { jobId, userId, url, status: data.status });
+            return { created: false, jobId, status: data.status };
+          }
+        }
+        // Create/overwrite fresh job
+        t.set(docRef, {
+          url,
+          userId,
+          status: 'queued',
+          queueAt,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        logger.info('job.create.new', { jobId, userId, url });
+        return { created: true, jobId, status: 'queued' as const };
+      });
+
+      // 4) Publish exactly once per new create (single-flight guard)
+      if (result.created) {
+        if (publishingKeys.has(jobKey)) {
+          logger.info('job.publish.skip_inflight', { jobId, jobKey });
+        } else {
+          publishingKeys.add(jobKey);
+          try {
+            await publisher.publishMessage({ data: Buffer.from(JSON.stringify({ id: jobId, url, userId })) });
+            logger.info('job.publish.ok', { jobId });
+          } finally {
+            publishingKeys.delete(jobKey);
+          }
+        }
+      }
+
+      // 5) Always return 202 with jobId
+      res.status(202).json({ jobId: result.jobId, status: result.status });
+      return;
+    } catch (err: any) {
+      logger.error('job.create.error', { err: err?.message, stack: err?.stack });
+      res.status(500).json({ error: 'INTERNAL', message: 'Job creation failed', details: err?.message ?? null });
       return;
     }
-
-    const queueAt = Date.now();
-    logger.info('job.create.request', { userId, url: text, queueAt });
-
-    // Compute stable job ID based on user + URL
-    const jobKey = `${userId}:${text.trim().toLowerCase()}`;
-    const jobId = createStableId(jobKey);
-    const docRef = admin.firestore().collection('imports').doc(jobId);
-
-    // One-active-job-per-user check (soft limit, 2 minutes)
-    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
-    const activeJobsQuery = await admin.firestore()
-      .collection('imports')
-      .where('userId', '==', userId)
-      .where('status', 'in', ['queued', 'working'])
-      .where('queueAt', '>', twoMinutesAgo)
-      .limit(5)
-      .get();
-
-    for (const activeJob of activeJobsQuery.docs) {
-      const data = activeJob.data();
-      if (data.url === text) {
-        // Same URL, return existing job
-        logger.info('job.create.idempotent_hit', { jobId: activeJob.id, userId, url: text });
-        res.status(202).json({
-          jobId: activeJob.id,
-          status: data.status
-        });
-        return;
-      } else {
-        // Different URL, reject
-        logger.warn('job.create.too_many_active', { userId, activeJobId: activeJob.id, activeUrl: data.url, newUrl: text });
-        res.status(429).json({
-          error: 'TOO_MANY_ACTIVE_JOBS',
-          message: 'Finish current import before starting another.'
-        });
-        return;
-      }
-    }
-
-    // Idempotent job creation with transaction
-    const result = await admin.firestore().runTransaction(async (transaction) => {
-      const doc = await transaction.get(docRef);
-      
-      if (doc.exists) {
-        const data = doc.data()!;
-        const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-        
-        // If job is active, don't republish
-        if (['queued', 'working'].includes(data.status)) {
-          logger.info('job.create.idempotent_hit', { jobId, userId, url: text, status: data.status });
-          return { jobId, status: data.status, shouldPublish: false };
-        }
-        
-        // If job completed recently, don't republish
-        if (['success', 'error'].includes(data.status) && data.updatedAt && data.updatedAt.toMillis() > tenMinutesAgo) {
-          logger.info('job.create.idempotent_hit', { jobId, userId, url: text, status: data.status });
-          return { jobId, status: data.status, shouldPublish: false };
-        }
-      }
-      
-      // Create/overwrite job
-      const jobData = {
-        url: text,
-        userId: userId || null,
-        status: 'queued',
-        queueAt,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      };
-      
-      transaction.set(docRef, jobData);
-      logger.info('job.create.new', { jobId, userId, url: text });
-      return { jobId, status: 'queued', shouldPublish: true };
-    });
-
-    // Single-flight publish guard
-    if (result.shouldPublish) {
-      if (publishingKeys.has(jobKey)) {
-        logger.info('job.publish.skip_inflight', { jobId, jobKey });
-      } else {
-        publishingKeys.add(jobKey);
-        try {
-          const pubsubMessage = {
-            id: jobId,
-            url: text,
-            userId: userId || null
-          };
-
-          const pubsub = new PubSub();
-          const topic = pubsub.topic('import-jobs');
-          await topic.publishMessage({
-            json: pubsubMessage
-          });
-          logger.info('job.publish.ok', { jobId });
-        } finally {
-          publishingKeys.delete(jobKey);
-        }
-      }
-    }
-
-    // Return job ID immediately (202 Accepted)
-    res.status(202).json({
-      jobId: result.jobId,
-      status: result.status
-    });
-    return;
-
   } catch (err: any) {
-    const { text, userId } = req.body || {};
-    logger.error('job.create.error', { userId, url: text, err: err?.message });
+    logger.error('importPropertyFromText failed', { error: err?.message, stack: err?.stack });
     res.status(500).json({ 
       error: 'Internal server error', 
       message: err?.message || 'Unknown error'

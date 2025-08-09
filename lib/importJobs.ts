@@ -32,43 +32,66 @@ export interface ImportJobStatus {
   updatedAt?: any;
 }
 
+// Module-level single-flight deduplication for job creation
+const activeJobs = new Map<string, Promise<{ jobId: string }>>();
+
 /**
- * Create an import job for the given URL
+ * Create an import job for the given URL (with client-side single-flight)
  */
 export async function createImportJob(url: string, userId: string): Promise<{ jobId: string }> {
-  console.info('Creating import job...', { url, userId });
+  const jobKey = `${userId}:${url.trim().toLowerCase()}`;
   
-  const endpoint = getImportEndpoint();
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ text: url, userId }),
-  });
-
-  console.info('Job creation response:', response.status);
-
-  if (response.status === 202) {
-    const data = await response.json();
-    console.info('Job created:', data.jobId);
-    return { jobId: data.jobId };
+  // Check if job creation is already in progress
+  const existingJob = activeJobs.get(jobKey);
+  if (existingJob) {
+    console.info('Reusing active job creation', { key: jobKey });
+    return existingJob;
   }
 
-  // Handle non-202 responses as errors
-  let errorMessage = `HTTP ${response.status}`;
-  try {
-    const errorData = await response.json();
-    errorMessage = errorData?.error || errorData?.message || errorMessage;
-  } catch {
+  console.info('Creating import job...', { key: jobKey, url, userId });
+  
+  // Create new job creation promise with single-flight protection
+  const jobPromise = (async () => {
     try {
-      errorMessage = await response.text() || errorMessage;
-    } catch {
-      // Use default HTTP status message
-    }
-  }
+      const endpoint = getImportEndpoint();
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: url, userId }),
+      });
 
-  throw new Error(errorMessage);
+      console.info('Job creation response:', response.status);
+
+      if (response.status === 202) {
+        const data = await response.json();
+        console.info('Job created:', data.jobId);
+        return { jobId: data.jobId };
+      }
+
+      // Handle non-202 responses as errors
+      let errorMessage = `HTTP ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData?.error || errorData?.message || errorMessage;
+      } catch {
+        try {
+          errorMessage = await response.text() || errorMessage;
+        } catch {
+          // Use default HTTP status message
+        }
+      }
+
+      throw new Error(errorMessage);
+    } finally {
+      // Always clean up active job
+      activeJobs.delete(jobKey);
+    }
+  })();
+
+  activeJobs.set(jobKey, jobPromise);
+  return jobPromise;
 }
 
 /**
@@ -159,38 +182,15 @@ export async function pollImportJob(
   });
 }
 
-// Client-side single-flight deduplication for import jobs
-const activeJobs = new Map<string, Promise<ImportJobResult>>();
-
 /**
- * Import a property with single-flight deduplication
+ * Import a property (simplified - createImportJob now handles single-flight)
  */
 export async function importProperty(
   url: string, 
   userId: string,
   onStatusUpdate: (status: ImportJobStatus) => void
 ): Promise<ImportJobResult> {
-  const urlKey = url.trim().toLowerCase();
-
-  // Check if job is already in progress for this URL
-  const existingJob = activeJobs.get(urlKey);
-  if (existingJob) {
-    console.info('Reusing existing job for URL:', urlKey);
-    return existingJob;
-  }
-
-  // Create new job with single-flight protection
-  const jobPromise = (async () => {
-    try {
-      const { jobId } = await createImportJob(url, userId);
-      const result = await pollImportJob(jobId, onStatusUpdate);
-      return result;
-    } finally {
-      // Always clean up active job
-      activeJobs.delete(urlKey);
-    }
-  })();
-
-  activeJobs.set(urlKey, jobPromise);
-  return jobPromise;
+  const { jobId } = await createImportJob(url, userId);
+  const result = await pollImportJob(jobId, onStatusUpdate);
+  return result;
 }
