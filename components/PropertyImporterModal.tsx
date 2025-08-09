@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { getImportEndpoint } from '@/lib/importEndpoint';
 
 interface PropertyData {
   address: string;
@@ -65,7 +66,7 @@ export default function PropertyImporterModal({
     setSuccess(false);
 
     try {
-      const functionUrl = process.env.NEXT_PUBLIC_IMPORT_ENDPOINT!;
+      const functionUrl = getImportEndpoint(); // ALWAYS the Firebase Function URL on Vercel
 
       // Prepare request body with text field
       const requestBody = {
@@ -90,9 +91,15 @@ export default function PropertyImporterModal({
       console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Error response:', errorData);
-        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+        // Avoid "Unexpected end of JSON input" on non-JSON error bodies
+        const ct = response.headers.get('content-type') || '';
+        let details: any = null;
+        if (ct.includes('application/json')) {
+          try { details = await response.json(); } catch {}
+        } else {
+          try { details = await response.text(); } catch {}
+        }
+        throw new Error(`HTTP ${response.status}${details ? `: ${typeof details === 'string' ? details : JSON.stringify(details)}` : ''}`);
       }
 
       const result = await response.json();
