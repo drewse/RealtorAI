@@ -10,7 +10,7 @@ declare global {
   var scraperUrlLogged: boolean | undefined;
 }
 
-const SCRAPER_URL = defineString('SCRAPER_URL'); // set via functions:secrets:set
+// SCRAPER_URL will be defined inside the handler to avoid module-load issues
 
 setGlobalOptions({ region: 'us-central1' });
 admin.initializeApp();
@@ -279,13 +279,7 @@ export const generateBuyerPersona = onRequest(
   }
 );
 
-function setCors(res: any) {
-  // TEMP: wide-open CORS so the browser never blocks during debugging
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Max-Age', '86400');
-}
+
 
 // Enhanced caching, single-flight deduplication, and rate limiting
 const urlCache = new Map<string, { data: any; timestamp: number }>();
@@ -374,11 +368,20 @@ async function makeScraperRequest(cloudRunUrl: string, payload: any, maxRetries:
 }
 
 export const importPropertyFromText = onRequest({ region: 'us-central1' }, async (req, res): Promise<void> => {
-  setCors(res);
+  // --- BEGIN HARD CORS ---
+  res.setHeader('Access-Control-Allow-Origin', '*');              // TEMP: open for debug
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  // Debug headers to confirm this version is serving
+  res.setHeader('X-Debug-Cors', '1');
+  res.setHeader('X-Received-Origin', req.get('Origin') || '');
+  // Preflight fast-path
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
     return;
   }
+  // --- END HARD CORS ---
 
   try {
     if (req.method !== 'POST') {
@@ -393,6 +396,8 @@ export const importPropertyFromText = onRequest({ region: 'us-central1' }, async
       return;
     }
 
+    // Define SCRAPER_URL inside handler to avoid module-load issues
+    const SCRAPER_URL = defineString('SCRAPER_URL');
     const cloudRunUrl = SCRAPER_URL.value() || process.env.SCRAPER_URL;
     if (!cloudRunUrl) {
       logger.error('SCRAPER_URL not set');
